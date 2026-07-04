@@ -7,6 +7,10 @@
   "http": {
     "app": "./src/agent/app.py:app"
   },
+  "auth": {
+    "path": "./src/agent/auth.py:auth",
+    "disable_studio_auth": false
+  },
   "env": ".env",
   "image_distro": "wolfi",
   "dockerfile_lines": [

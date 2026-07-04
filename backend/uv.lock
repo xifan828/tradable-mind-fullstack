@@ -33,6 +33,7 @@ dependencies = [
     { name = "ta-lib" },
     { name = "tiktoken" },
     { name = "twelvedata" },
+    { name = "tzdata" },
     { name = "yfinance" },
 ]
 
@@ -72,6 +73,7 @@ requires-dist = [
     { name = "ta-lib", specifier = ">=0.6.8" },
     { name = "tiktoken", specifier = ">=0.5.0" },
     { name = "twelvedata" },
+    { name = "tzdata" },
     { name = "yfinance", specifier = ">=1.1.0" },
 ]
 provides-extras = ["dev"]
