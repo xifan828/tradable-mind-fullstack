@@ -245,7 +245,7 @@ def get_decimal_places(symbol: str) -> int:
     if symbol in DECIMAL_PLACES:
         return DECIMAL_PLACES[symbol]
     # Fall back to metadata service for unknown symbols
-    from src.services.asset_metadata import get_metadata_service
+    from agent.services.asset_metadata import get_metadata_service
     return get_metadata_service().get_decimal_places(symbol)
 
 
