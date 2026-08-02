@@ -126,9 +126,13 @@ class YFinanceData:
         return df
 
     def _calculate_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Calculate technical indicators using talib to match TwelveData output."""
-        if df.empty or len(df) < 100:
-            # Need enough data for EMA100
+        """Calculate technical indicators using talib to match TwelveData output.
+
+        Indicators with a longer lookback than the available data (e.g. EMA100
+        on <100 bars) come back as NaN rather than being skipped, so the
+        columns always exist for downstream chart/context code.
+        """
+        if df.empty:
             return df
 
         close = df['Close'].values

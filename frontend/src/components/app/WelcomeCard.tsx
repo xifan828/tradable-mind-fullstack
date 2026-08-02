@@ -4,53 +4,48 @@ const PROMPTS = [
   'How does the asset usually perform on Mondays during the first two hours of the New York session?',
 ]
 
+/** Fills the ChatInput with a suggested prompt (picked up via `tm:suggest`). */
+function suggest(prompt: string) {
+  window.dispatchEvent(new CustomEvent('tm:suggest', { detail: prompt }))
+}
+
 export default function WelcomeCard() {
   return (
-    <div className="tm-card tm-fade-in relative overflow-hidden p-6">
-      <div
-        className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full opacity-60 blur-3xl"
-        style={{ background: 'var(--glow)' }}
-      />
-      <div className="relative">
-        <div className="flex items-center gap-3">
-          <span
-            className="flex h-10 w-10 items-center justify-center rounded-xl"
-            style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}
-          >
-            <span className="material-symbol" style={{ fontSize: 22 }}>
-              auto_awesome
-            </span>
-          </span>
-          <div>
-            <h3 className="font-display text-lg font-bold leading-tight" style={{ color: 'var(--text)' }}>
-              Welcome to Tradable Mind
-            </h3>
-            <p className="text-[0.82rem] font-medium" style={{ color: 'var(--text-faint)' }}>
-              Your Professional-Grade AI Trading Desk
-            </p>
-          </div>
-        </div>
-
-        <p className="mt-4 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-          Ask questions about the loaded chart and get institutional-grade reasoning chains —
-          multi-agent analysis combining visual pattern recognition with quantitative data.
+    <div className="tm-fade-in">
+      <div className="py-4">
+        <h3
+          className="font-display text-xl leading-snug"
+          style={{ fontWeight: 600, color: 'var(--text)' }}
+        >
+          What are we trading today?
+        </h3>
+        <p className="mt-2.5 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+          Ask anything about the loaded chart and get a full reasoning chain — the chart and
+          quant agents work the problem in parallel and synthesize their findings here.
         </p>
+      </div>
 
-        <p className="mt-5 mb-2 text-[0.72rem] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-faint)' }}>
-          Try asking
-        </p>
+      <div>
+        <p className="tm-kicker mb-2">Try asking</p>
         <div className="space-y-2">
           {PROMPTS.map((p) => (
-            <div
+            <button
               key={p}
-              className="flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm leading-relaxed"
-              style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }}
+              type="button"
+              onClick={() => suggest(p)}
+              className="tm-focus flex w-full items-start gap-2.5 border px-3.5 py-2.5 text-left text-sm leading-relaxed transition-colors hover:border-[color:var(--brand)] hover:text-[color:var(--brand)]"
+              style={{
+                borderColor: 'var(--border)',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--surface)',
+                color: 'var(--text)',
+              }}
             >
-              <span className="material-symbol mt-0.5 shrink-0" style={{ fontSize: 16, color: 'var(--brand)' }}>
-                chevron_right
+              <span className="material-symbol mt-0.5 shrink-0" style={{ fontSize: 15, color: 'var(--brand)' }}>
+                arrow_forward
               </span>
               {p}
-            </div>
+            </button>
           ))}
         </div>
       </div>

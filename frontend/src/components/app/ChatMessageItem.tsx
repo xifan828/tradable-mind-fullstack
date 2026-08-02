@@ -3,9 +3,10 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { ChatMessage, TaskArgs, TodoItem } from '../../types'
 
+// Labels for sub-agent reports.
 const AGENT_META: Record<string, { icon: string; name: string; color: string }> = {
-  chart: { icon: 'candlestick_chart', name: 'Chart Analysis', color: '#2196F3' },
-  quantitative: { icon: 'functions', name: 'Quant Analysis', color: '#FF9800' },
+  chart: { icon: 'candlestick_chart', name: 'Chart Agent', color: 'var(--brand)' },
+  quantitative: { icon: 'functions', name: 'Quant Agent', color: 'var(--accent-2)' },
 }
 
 const TODO_META: Record<TodoItem['status'], { icon: string; color: string; spin?: boolean }> = {
@@ -30,13 +31,27 @@ function Icon({ name, size = 18, color, spin }: { name: string; size?: number; c
   )
 }
 
+/** Small-caps overline used by every reasoning block. */
+function Kicker({ children, color }: { children: string; color?: string }) {
+  return (
+    <p className="tm-kicker mb-1.5" style={color ? { color } : undefined}>
+      {children}
+    </p>
+  )
+}
+
 export default function ChatMessageItem({ message }: { message: ChatMessage }) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
         <div
-          className="max-w-[82%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm leading-relaxed"
-          style={{ background: 'var(--brand)', color: 'var(--brand-contrast)', boxShadow: '0 6px 18px -8px var(--glow)' }}
+          className="max-w-[82%] px-4 py-2.5 text-sm leading-relaxed"
+          style={{
+            background: 'var(--brand)',
+            color: 'var(--brand-contrast)',
+            borderRadius: 'var(--radius-lg)',
+            borderBottomRightRadius: 'var(--radius-xs)',
+          }}
         >
           {message.content}
         </div>
@@ -44,16 +59,11 @@ export default function ChatMessageItem({ message }: { message: ChatMessage }) {
     )
   }
 
-  // Assistant: structured blocks render full-width; plain text in a soft bubble.
+  // Assistant prose: full-width column with a faint rule — reads like copy.
   if (message.type === 'text') {
     return (
-      <div className="flex justify-start">
-        <div
-          className="max-w-[88%] rounded-2xl rounded-bl-md border px-4 py-3"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <Markdown>{message.content}</Markdown>
-        </div>
+      <div className="border-l-2 py-0.5 pl-3.5" style={{ borderColor: 'var(--border)' }}>
+        <Markdown>{message.content}</Markdown>
       </div>
     )
   }
@@ -68,7 +78,7 @@ function AssistantBlock({ message }: { message: ChatMessage }) {
     case 'tool_call':
       if (message.toolName === 'write_todos') {
         const todos = (message.toolArgs?.todos as TodoItem[] | undefined) ?? []
-        return <TodoListBlock todos={todos} title="Planning" icon="checklist" />
+        return <TodoListBlock todos={todos} />
       }
       if (message.toolName === 'task') {
         return <TaskBlock args={(message.toolArgs ?? {}) as unknown as TaskArgs} result={message.result ?? null} />
@@ -79,16 +89,11 @@ function AssistantBlock({ message }: { message: ChatMessage }) {
   }
 }
 
+/** The agent's intermediate reasoning, set off from the answer. */
 function ThinkingBlock({ content }: { content: string }) {
   return (
-    <div
-      className="rounded-xl border px-4 py-3"
-      style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
-    >
-      <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--text-faint)' }}>
-        <Icon name="neurology" size={15} color="var(--brand)" />
-        Thinking
-      </p>
+    <div className="border-l-2 py-0.5 pl-3.5" style={{ borderColor: 'var(--brand)' }}>
+      <Kicker color="var(--brand)">Thinking</Kicker>
       <p className="whitespace-pre-wrap text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
         {content}
       </p>
@@ -96,24 +101,23 @@ function ThinkingBlock({ content }: { content: string }) {
   )
 }
 
+/** Generic tool call, rendered as a collapsed footnote line. */
 function ToolCallBlock({ name, args }: { name: string; args: Record<string, unknown> }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="overflow-hidden rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+    <div>
       <button
-        className="flex w-full items-center justify-between px-4 py-2.5 text-xs font-bold"
-        style={{ color: 'var(--text)' }}
+        className="tm-focus flex w-full items-center gap-1.5 py-0.5 font-mono text-[0.72rem] transition-colors hover:text-[color:var(--brand)]"
+        style={{ color: 'var(--text-faint)' }}
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
       >
-        <span className="flex items-center gap-1.5">
-          <Icon name="build" size={15} color="var(--text-faint)" />
-          Tool Call: <span className="font-mono font-semibold" style={{ color: 'var(--brand)' }}>{name}</span>
-        </span>
-        <Icon name="expand_more" size={18} color="var(--text-faint)" />
+        <span aria-hidden>{open ? '▾' : '▸'}</span>
+        {name}
       </button>
       {open && (
         <pre
-          className="overflow-x-auto border-t px-4 py-3 text-xs"
+          className="tm-fade-in mt-1 overflow-x-auto border-l-2 py-1 pl-3.5 text-xs"
           style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
         >
           {JSON.stringify(args, null, 2)}
@@ -123,20 +127,44 @@ function ToolCallBlock({ name, args }: { name: string; args: Record<string, unkn
   )
 }
 
-function TodoListBlock({ todos, title, icon }: { todos: TodoItem[]; title: string; icon: string }) {
+/** The orchestrator's plan, set like a numbered docket. */
+function TodoListBlock({ todos }: { todos: TodoItem[] }) {
   return (
-    <div className="rounded-xl border px-4 py-3" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-      <p className="mb-2.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--text-faint)' }}>
-        <Icon name={icon} size={15} color="var(--brand)" />
-        {title}
-      </p>
-      <ul className="space-y-1.5">
+    <div>
+      <div className="border-b pb-1.5" style={{ borderColor: 'var(--border)' }}>
+        <span className="tm-kicker">Research docket</span>
+      </div>
+      <ul>
         {todos.map((todo, idx) => {
           const meta = TODO_META[todo.status]
+          const active = todo.status === 'in_progress'
+          const done = todo.status === 'completed'
           return (
-            <li key={idx} className="flex items-start gap-2 text-sm" style={{ color: 'var(--text)' }}>
-              <Icon name={meta.icon} size={16} color={meta.color} spin={meta.spin} />
-              <span style={{ opacity: todo.status === 'completed' ? 0.6 : 1 }}>{todo.content}</span>
+            <li
+              key={idx}
+              className="flex items-baseline gap-3 border-b py-2 text-sm"
+              style={{ borderColor: 'var(--border)', opacity: done ? 0.6 : 1 }}
+            >
+              <span
+                className="font-mono text-xs font-semibold"
+                style={{ color: active ? 'var(--brand)' : 'var(--text-faint)' }}
+              >
+                {String(idx + 1).padStart(2, '0')}
+              </span>
+              <span
+                className="flex-1"
+                style={{
+                  color: 'var(--text)',
+                  fontWeight: active ? 500 : 400,
+                  textDecoration: done ? 'line-through' : 'none',
+                  textDecorationColor: 'var(--text-faint)',
+                }}
+              >
+                {todo.content}
+              </span>
+              <span className="self-center">
+                <Icon name={meta.icon} size={15} color={meta.color} spin={meta.spin} />
+              </span>
             </li>
           )
         })}
@@ -146,8 +174,9 @@ function TodoListBlock({ todos, title, icon }: { todos: TodoItem[]; title: strin
 }
 
 /**
- * A single `task` tool call. The sub-agent's result is merged into this same
- * block once it arrives (a spinner shows while it is still running).
+ * A single `task` tool call — a sub-agent's report. The result is merged
+ * into this same block once it arrives (a spinner shows while the agent
+ * is still working).
  */
 function TaskBlock({ args, result }: { args: TaskArgs; result: string | null }) {
   const [open, setOpen] = useState(false)
@@ -157,32 +186,39 @@ function TaskBlock({ args, result }: { args: TaskArgs; result: string | null }) 
 
   return (
     <div
-      className="overflow-hidden rounded-xl border"
-      style={{ background: 'var(--surface)', borderColor: done ? 'var(--border)' : 'var(--brand-ring)' }}
+      className="overflow-hidden border"
+      style={{
+        background: 'var(--surface)',
+        borderColor: done ? 'var(--border)' : 'var(--brand-ring)',
+        borderRadius: 'var(--radius-md)',
+      }}
     >
-      <button className="w-full px-4 py-3 text-left" onClick={() => setOpen((o) => !o)}>
+      <button className="tm-focus w-full px-4 py-3 text-left" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <div className="flex items-center justify-between gap-3">
-          <span className="flex items-center gap-2 text-sm font-bold" style={{ color: 'var(--text)' }}>
-            <Icon name={meta.icon} size={17} color={meta.color} />
-            {meta.name}
+          <span className="tm-kicker !text-[0.66rem]" style={{ color: meta.color }}>
+            <Icon name={meta.icon} size={14} color={meta.color} /> {meta.name}
           </span>
           <Icon
             name={done ? 'check_circle' : 'progress_activity'}
-            size={17}
+            size={16}
             color={done ? 'var(--up)' : 'var(--brand)'}
             spin={!done}
           />
         </div>
-        <p className="mt-1.5 text-sm italic" style={{ color: 'var(--text-muted)' }}>
-          {args.task_description}
+        <p className="mt-1.5 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+          {done ? args.task_description : 'Working — ' + args.task_description}
         </p>
         {params && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {Object.entries(params).map(([k, v]) => (
               <span
                 key={k}
-                className="rounded-md px-1.5 py-0.5 font-mono text-[0.7rem]"
-                style={{ background: 'var(--surface-3)', color: 'var(--text-faint)' }}
+                className="px-1.5 py-0.5 font-mono text-[0.68rem]"
+                style={{
+                  background: 'var(--surface-2)',
+                  color: 'var(--text-faint)',
+                  borderRadius: 'var(--radius-xs)',
+                }}
               >
                 {k}: {String(v)}
               </span>

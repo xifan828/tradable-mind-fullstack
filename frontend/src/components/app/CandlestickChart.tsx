@@ -11,11 +11,12 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts'
 import { useAppStore } from '../../store/useAppStore'
-import { CHART_COLORS } from '../../theme/tokens'
+import { getChartColors } from '../../theme/chartTheme'
 import type { OHLCRow } from '../../types'
 
-const SUB_PANE_HEIGHT = 170
-const MAIN_PANE_HEIGHT = 550
+// Pane proportions: the price pane vs. each indicator sub-pane.
+const MAIN_PANE_STRETCH = 100
+const SUB_PANE_STRETCH = 28
 
 function toTime(dateStr: string): UTCTimestamp {
   return Math.floor(new Date(dateStr).getTime() / 1000) as UTCTimestamp
@@ -41,41 +42,38 @@ export default function CandlestickChart() {
   const chartRef = useRef<IChartApi | null>(null)
 
   const isDark = themeMode === 'dark'
-
-  // Count the indicator sub-panes so the container can be sized before render.
   const hasVolume = !!chartData?.some((r) => r.Volume !== undefined && r.Volume !== null)
-  const subPanes = [
-    hasVolume && indicators.volume,
-    indicators.rsi,
-    indicators.macd,
-    indicators.atr,
-  ].filter(Boolean).length
-  const totalHeight = MAIN_PANE_HEIGHT + subPanes * SUB_PANE_HEIGHT
 
   useEffect(() => {
     const container = containerRef.current
     if (!container || !chartData || chartData.length === 0) return
 
-    const gridColor = isDark ? '#202632' : '#eef0f5'
+    // Read the chart palette from the active theme's CSS vars.
+    const colors = getChartColors()
     const intraday = !['1day', '1week', '1month'].includes(interval)
 
     const chart = createChart(container, {
       autoSize: true,
       layout: {
-        background: { color: isDark ? '#12151c' : '#ffffff' },
-        textColor: isDark ? '#9aa3b3' : '#586071',
+        background: { color: colors.bg },
+        textColor: colors.text,
         fontFamily: "'JetBrains Mono', ui-monospace, monospace",
         fontSize: 11,
         attributionLogo: false,
+        panes: {
+          separatorColor: colors.separator,
+          separatorHoverColor: colors.ref,
+          enableResize: true,
+        },
       },
       grid: {
-        vertLines: { color: gridColor },
-        horzLines: { color: gridColor },
+        vertLines: { color: colors.grid },
+        horzLines: { color: colors.grid },
       },
       crosshair: { mode: 0 },
-      rightPriceScale: { borderColor: gridColor },
+      rightPriceScale: { borderColor: colors.separator },
       timeScale: {
-        borderColor: gridColor,
+        borderColor: colors.separator,
         timeVisible: intraday,
         secondsVisible: false,
         rightOffset: 4,
@@ -90,10 +88,10 @@ export default function CandlestickChart() {
     const candles = chart.addSeries(
       CandlestickSeries,
       {
-        upColor: CHART_COLORS.candle_up,
-        downColor: CHART_COLORS.candle_down,
-        wickUpColor: CHART_COLORS.candle_up,
-        wickDownColor: CHART_COLORS.candle_down,
+        upColor: colors.candle_up,
+        downColor: colors.candle_down,
+        wickUpColor: colors.candle_up,
+        wickDownColor: colors.candle_down,
         borderVisible: false,
         priceFormat: { type: 'price', precision, minMove: 1 / 10 ** precision },
       },
@@ -126,19 +124,18 @@ export default function CandlestickChart() {
       return s
     }
 
-    if (indicators.ema_10) overlay(CHART_COLORS.ema_10, 1, 'EMA10')
-    if (indicators.ema_20) overlay(CHART_COLORS.ema_20, 1, 'EMA20')
-    if (indicators.ema_50) overlay(CHART_COLORS.ema_50, 2, 'EMA50')
-    if (indicators.ema_100) overlay(CHART_COLORS.ema_100, 2, 'EMA100')
+    if (indicators.ema_10) overlay(colors.ema_10, 1, 'EMA10')
+    if (indicators.ema_20) overlay(colors.ema_20, 1, 'EMA20')
+    if (indicators.ema_50) overlay(colors.ema_50, 2, 'EMA50')
+    if (indicators.ema_100) overlay(colors.ema_100, 2, 'EMA100')
 
     if (indicators.bb && chartData.some((r) => r.BB_Upper !== undefined)) {
-      overlay(CHART_COLORS.bb_band, 1, 'BB_Upper', true)
-      overlay(CHART_COLORS.bb_band, 1, 'BB_Lower', true)
-      overlay(CHART_COLORS.bb_middle, 1, 'BB_Middle')
+      overlay(colors.bb_band, 1, 'BB_Upper', true)
+      overlay(colors.bb_band, 1, 'BB_Lower', true)
+      overlay(colors.bb_middle, 1, 'BB_Middle')
     }
 
     // --- Sub-panes ---
-    const subPaneIndices: number[] = []
     let pane = 1
     const refLine = (
       series: ISeriesApi<'Line'>,
@@ -164,24 +161,22 @@ export default function CandlestickChart() {
         chartData.map((r) => ({
           time: toTime(r.Date),
           value: r.Volume ?? 0,
-          color: r.Close >= r.Open ? CHART_COLORS.volume_up : CHART_COLORS.volume_down,
+          color: r.Close >= r.Open ? colors.volume_up : colors.volume_down,
         })),
       )
-      subPaneIndices.push(pane)
       pane += 1
     }
 
     if (indicators.rsi) {
       const rsi = chart.addSeries(
         LineSeries,
-        { color: CHART_COLORS.rsi, lineWidth: 1, priceLineVisible: false, lastValueVisible: false },
+        { color: colors.rsi, lineWidth: 1, priceLineVisible: false, lastValueVisible: false },
         pane,
       )
       rsi.setData(lineData(chartData, 'RSI14'))
-      refLine(rsi, 70, CHART_COLORS.rsi_overbought)
-      refLine(rsi, 30, CHART_COLORS.rsi_oversold)
-      refLine(rsi, 50, '#9e9e9e', LineStyle.Dotted)
-      subPaneIndices.push(pane)
+      refLine(rsi, 70, colors.rsi_overbought)
+      refLine(rsi, 30, colors.rsi_oversold)
+      refLine(rsi, 50, colors.ref, LineStyle.Dotted)
       pane += 1
     }
 
@@ -195,23 +190,22 @@ export default function CandlestickChart() {
         chartData.map((r) => ({
           time: toTime(r.Date),
           value: r.MACD_Diff ?? 0,
-          color: (r.MACD_Diff ?? 0) >= 0 ? CHART_COLORS.macd_hist_pos : CHART_COLORS.macd_hist_neg,
+          color: (r.MACD_Diff ?? 0) >= 0 ? colors.macd_hist_pos : colors.macd_hist_neg,
         })),
       )
       const macd = chart.addSeries(
         LineSeries,
-        { color: CHART_COLORS.macd_line, lineWidth: 1, priceLineVisible: false, lastValueVisible: false },
+        { color: colors.macd_line, lineWidth: 1, priceLineVisible: false, lastValueVisible: false },
         pane,
       )
       macd.setData(lineData(chartData, 'MACD'))
       const signal = chart.addSeries(
         LineSeries,
-        { color: CHART_COLORS.macd_signal, lineWidth: 1, priceLineVisible: false, lastValueVisible: false },
+        { color: colors.macd_signal, lineWidth: 1, priceLineVisible: false, lastValueVisible: false },
         pane,
       )
       signal.setData(lineData(chartData, 'MACD_Signal'))
-      refLine(macd, 0, '#9e9e9e', LineStyle.Dotted)
-      subPaneIndices.push(pane)
+      refLine(macd, 0, colors.ref, LineStyle.Dotted)
       pane += 1
     }
 
@@ -219,9 +213,9 @@ export default function CandlestickChart() {
       const atr = chart.addSeries(
         AreaSeries,
         {
-          lineColor: CHART_COLORS.atr,
-          topColor: isDark ? 'rgba(41, 182, 246, 0.4)' : 'rgba(41, 182, 246, 0.3)',
-          bottomColor: 'rgba(41, 182, 246, 0.02)',
+          lineColor: colors.atr,
+          topColor: colors.atr_fill,
+          bottomColor: 'transparent',
           lineWidth: 1,
           priceLineVisible: false,
           lastValueVisible: false,
@@ -229,16 +223,12 @@ export default function CandlestickChart() {
         pane,
       )
       atr.setData(lineData(chartData, 'ATR'))
-      subPaneIndices.push(pane)
     }
 
-    // Size panes by stretch factor so the main pane and each indicator sub-pane
-    // keep a stable proportion (setHeight gets redistributed and squashes subs).
-    // Container height equals MAIN + n·SUB, so factors map 1:1 to pixels.
-    void subPaneIndices
-    const panes = chart.panes()
-    panes.forEach((p, i) => {
-      p.setStretchFactor(i === 0 ? MAIN_PANE_HEIGHT : SUB_PANE_HEIGHT)
+    // Proportional pane sizing: the chart fills its flex container (autoSize)
+    // and stretch factors split that height between price and indicator panes.
+    chart.panes().forEach((p, i) => {
+      p.setStretchFactor(i === 0 ? MAIN_PANE_STRETCH : SUB_PANE_STRETCH)
     })
 
     chart.timeScale().fitContent()
@@ -260,16 +250,24 @@ export default function CandlestickChart() {
   if (!chartData || chartData.length === 0) return null
 
   return (
-    <div className="tm-card relative w-full overflow-hidden p-0">
+    <div
+      className="relative h-full w-full overflow-hidden border"
+      style={{
+        borderColor: 'var(--border)',
+        borderRadius: 'var(--radius-lg)',
+        background: 'var(--chart-bg)',
+      }}
+    >
       <button
         type="button"
         onClick={resetView}
         title="Reset view"
         aria-label="Reset chart view"
-        className="tm-focus absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold backdrop-blur transition-colors"
+        className="tm-focus absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 border px-2.5 py-1.5 font-mono text-[0.68rem] font-semibold uppercase tracking-[0.08em] backdrop-blur transition-colors"
         style={{
-          background: 'color-mix(in srgb, var(--surface) 78%, transparent)',
+          background: 'color-mix(in srgb, var(--surface) 82%, transparent)',
           borderColor: 'var(--border)',
+          borderRadius: 'var(--radius-xs)',
           color: 'var(--text-muted)',
         }}
         onMouseEnter={(e) => {
@@ -281,12 +279,12 @@ export default function CandlestickChart() {
           e.currentTarget.style.color = 'var(--text-muted)'
         }}
       >
-        <span className="material-symbol" style={{ fontSize: 16 }}>
+        <span className="material-symbol" style={{ fontSize: 15 }}>
           restart_alt
         </span>
         Reset view
       </button>
-      <div ref={containerRef} style={{ width: '100%', height: totalHeight }} />
+      <div ref={containerRef} className="h-full w-full" />
     </div>
   )
 }

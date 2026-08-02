@@ -20,23 +20,23 @@ export default function AgentConfigExpander() {
   const isStreaming = useAppStore((s) => s.isStreaming)
 
   return (
-    <div className="tm-card mb-4 overflow-hidden p-0">
+    <div className="mb-4 border-b" style={{ borderColor: 'var(--border)' }}>
       <button
-        className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold transition-colors"
-        style={{ color: 'var(--text)' }}
+        className="tm-focus flex w-full items-center justify-between py-2.5 transition-colors"
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
       >
-        <span className="flex items-center gap-2">
-          <span className="material-symbol" style={{ fontSize: 18, color: 'var(--brand)' }}>
-            tune
-          </span>
-          Agent Configuration
+        <span className="tm-kicker" style={{ color: 'var(--text-muted)' }}>
+          Methodology
         </span>
-        <span className="flex items-center gap-2 text-xs font-normal" style={{ color: 'var(--text-faint)' }}>
+        <span
+          className="flex items-center gap-2 font-mono text-[0.68rem]"
+          style={{ color: 'var(--text-faint)' }}
+        >
           {agentModelLabel}
           <span
             className="material-symbol transition-transform"
-            style={{ fontSize: 20, transform: open ? 'rotate(180deg)' : 'none' }}
+            style={{ fontSize: 18, transform: open ? 'rotate(180deg)' : 'none' }}
           >
             expand_more
           </span>
@@ -44,8 +44,8 @@ export default function AgentConfigExpander() {
       </button>
 
       {open && (
-        <div className="tm-fade-in border-t px-4 py-4" style={{ borderColor: 'var(--border)' }}>
-          <p className="mb-4 text-xs" style={{ color: 'var(--text-faint)' }}>
+        <div className="tm-fade-in border-t py-4" style={{ borderColor: 'var(--border)' }}>
+          <p className="mb-4 text-xs" style={{ color: 'var(--text-muted)' }}>
             Settings apply automatically to your next message.
           </p>
 
@@ -94,10 +94,10 @@ function SegmentedModel({
     <div>
       <p className="tm-field-label mb-1.5">{label}</p>
       <div
-        className="flex rounded-[10px] border p-1"
-        style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+        className="flex border"
+        style={{ borderColor: 'var(--border-strong)', borderRadius: 'var(--radius-sm)' }}
       >
-        {options.map((opt) => {
+        {options.map((opt, i) => {
           const active = value === opt
           return (
             <button
@@ -105,11 +105,11 @@ function SegmentedModel({
               type="button"
               disabled={disabled}
               onClick={() => onChange(opt)}
-              className="flex-1 rounded-[7px] px-2 py-1.5 text-[0.78rem] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 px-2 py-1.5 text-[0.78rem] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50"
               style={{
-                background: active ? 'var(--surface)' : 'transparent',
-                color: active ? 'var(--brand)' : 'var(--text-faint)',
-                boxShadow: active ? 'var(--shadow-sm)' : 'none',
+                background: active ? 'var(--text)' : 'transparent',
+                color: active ? 'var(--canvas)' : 'var(--text-faint)',
+                borderLeft: i > 0 ? '1px solid var(--border-strong)' : 'none',
               }}
             >
               {opt.replace('Gemini ', '')}

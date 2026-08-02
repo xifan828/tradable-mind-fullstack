@@ -26,8 +26,9 @@ export default function ThemeToggle({ variant = 'icon' }: ThemeToggleProps) {
     <button
       onClick={toggleTheme}
       aria-label="Toggle color theme"
-      className="tm-focus inline-flex h-9 w-9 items-center justify-center rounded-[10px] border transition-colors"
-      style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }}
+      title={isDark ? 'Switch to the morning edition' : 'Switch to the evening edition'}
+      className="tm-focus inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] border transition-colors hover:bg-[color:var(--surface-2)]"
+      style={{ background: 'transparent', borderColor: 'var(--border-strong)', color: 'var(--text)' }}
     >
       <span className="material-symbol" style={{ fontSize: 18 }}>
         {icon}
