@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { langGraphClient, normalizeChunk } from '../../lib/agentClient'
 import { MODEL_MAP } from '../../types'
@@ -13,10 +13,15 @@ function nextId(prefix: string) {
   return `${prefix}-${Date.now()}-${msgCounter}`
 }
 
-export default function ChatSection() {
+interface ChatSectionProps {
+  onClearConversation: () => void
+}
+
+export default function ChatSection({ onClearConversation }: ChatSectionProps) {
   const messages = useAppStore((s) => s.messages)
   const isStreaming = useAppStore((s) => s.isStreaming)
   const geminiApiKey = useAppStore((s) => s.geminiApiKey)
+  const chartLoaded = useAppStore((s) => s.chartLoaded)
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
@@ -24,34 +29,67 @@ export default function ChatSection() {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages])
 
+  // Staggered messages reveal after the store update; follow them too.
+  useEffect(() => {
+    function onReveal() {
+      scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }
+    window.addEventListener('tm:msg-reveal', onReveal)
+    return () => window.removeEventListener('tm:msg-reveal', onReveal)
+  }, [])
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col border-l" style={{ borderColor: 'var(--border)' }}>
       {/* Panel header */}
       <div
-        className="flex shrink-0 items-center gap-2.5 border-b px-5 py-4"
+        className="flex shrink-0 items-center justify-between gap-3 border-b px-5 py-3.5"
         style={{ borderColor: 'var(--border)' }}
       >
-        <span
-          className="flex h-7 w-7 items-center justify-center rounded-lg"
-          style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}
-        >
-          <span className="material-symbol" style={{ fontSize: 18 }}>
-            forum
+        <div className="flex items-center gap-2.5">
+          <span
+            className="inline-block h-2 w-2 rounded-full"
+            style={{ background: 'var(--up)' }}
+            aria-hidden
+          />
+          <span className="font-display text-lg leading-none" style={{ fontWeight: 650, color: 'var(--text)' }}>
+            AI Analyst
           </span>
-        </span>
-        <span className="font-display text-base font-bold" style={{ color: 'var(--text)' }}>
-          Ask the Agent
-        </span>
+          <span className="tm-kicker hidden sm:inline">Multi-agent</span>
+        </div>
+        <button
+          type="button"
+          onClick={onClearConversation}
+          title="Clear conversation"
+          className="tm-focus inline-flex items-center gap-1 font-mono text-[0.68rem] font-semibold uppercase tracking-[0.08em] transition-colors hover:text-[color:var(--brand)]"
+          style={{ color: 'var(--text-faint)' }}
+        >
+          <span className="material-symbol" style={{ fontSize: 15 }}>
+            restart_alt
+          </span>
+          Clear
+        </button>
       </div>
 
       {/* Scrollable conversation region */}
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         <AgentConfigExpander />
 
+        {!chartLoaded && (
+          <div
+            className="mb-4 flex items-center gap-2 border-l-2 py-1.5 pl-3 text-[0.8rem]"
+            style={{ borderColor: 'var(--border-strong)', color: 'var(--text-faint)' }}
+          >
+            <span className="material-symbol" style={{ fontSize: 16 }}>
+              candlestick_chart
+            </span>
+            No chart loaded yet — set a market in the toolbar for chart-aware analysis.
+          </div>
+        )}
+
         {!geminiApiKey && (
           <div
-            className="mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm"
-            style={{ background: 'var(--warn-soft)', borderColor: 'var(--warn-border)', color: 'var(--warn)' }}
+            className="mb-4 flex items-center gap-2 border-l-2 py-1.5 pl-3 text-sm"
+            style={{ borderColor: 'var(--warn)', color: 'var(--warn)' }}
           >
             <span className="material-symbol" style={{ fontSize: 18 }}>
               key
@@ -63,7 +101,9 @@ export default function ChatSection() {
         <div className="space-y-3">
           {messages.length === 0 && !isStreaming && <WelcomeCard />}
           {messages.map((m) => (
-            <ChatMessageItem key={m.id} message={m} />
+            <RevealOnTime key={m.id} revealAt={m.revealAt}>
+              <ChatMessageItem message={m} />
+            </RevealOnTime>
           ))}
           {isStreaming && <ThinkingIndicator />}
           <div ref={scrollRef} />
@@ -78,29 +118,43 @@ export default function ChatSection() {
   )
 }
 
+/**
+ * Holds a message off-screen until its `revealAt` timestamp, then fades it
+ * in. Burst-arriving stream events (thinking + plan + sub-agent tasks) get
+ * staggered timestamps in createStreamHandler, so they appear one by one.
+ */
+function RevealOnTime({ revealAt, children }: { revealAt?: number; children: ReactNode }) {
+  const [visible, setVisible] = useState(() => !revealAt || revealAt <= Date.now())
+
+  useEffect(() => {
+    if (visible || !revealAt) return
+    const t = setTimeout(() => {
+      setVisible(true)
+      window.dispatchEvent(new CustomEvent('tm:msg-reveal'))
+    }, Math.max(0, revealAt - Date.now()))
+    return () => clearTimeout(t)
+  }, [visible, revealAt])
+
+  if (!visible) return null
+  return <div className="tm-msg-in">{children}</div>
+}
+
 function ThinkingIndicator() {
   return (
-    <div className="flex justify-start">
-      <div
-        className="flex items-center gap-2.5 rounded-2xl rounded-bl-md border px-4 py-3"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
-        <span className="material-symbol" style={{ fontSize: 18, color: 'var(--brand)' }}>
-          neurology
-        </span>
-        <span className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-          Agent is analyzing
-        </span>
-        <span className="flex gap-1">
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="tm-think-dot h-1.5 w-1.5 rounded-full"
-              style={{ background: 'var(--brand)', animationDelay: `${i * 0.18}s` }}
-            />
-          ))}
-        </span>
-      </div>
+    <div
+      className="flex items-center gap-2.5 border-l-2 py-0.5 pl-3.5"
+      style={{ borderColor: 'var(--brand)' }}
+    >
+      <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Thinking</span>
+      <span className="flex gap-1">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="tm-think-dot h-1 w-1 rounded-full"
+            style={{ background: 'var(--brand)', animationDelay: `${i * 0.18}s` }}
+          />
+        ))}
+      </span>
     </div>
   )
 }
@@ -111,6 +165,16 @@ function ChatInput() {
   const geminiApiKey = useAppStore((s) => s.geminiApiKey)
   const isStreaming = useAppStore((s) => s.isStreaming)
   const disabled = !geminiApiKey || isStreaming
+
+  // Suggested prompts (WelcomeCard) fill the composer via this event.
+  useEffect(() => {
+    function onSuggest(e: Event) {
+      const detail = (e as CustomEvent<string>).detail
+      if (typeof detail === 'string') setValue(detail)
+    }
+    window.addEventListener('tm:suggest', onSuggest)
+    return () => window.removeEventListener('tm:suggest', onSuggest)
+  }, [])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -123,25 +187,29 @@ function ChatInput() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex items-center gap-2 rounded-2xl border p-2 transition-colors focus-within:border-[color:var(--brand)]"
-      style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+      className="flex items-center gap-2 border py-1 pl-4 pr-1 transition-shadow focus-within:shadow-[0_0_0_3px_var(--brand-ring)]"
+      style={{
+        borderColor: 'var(--border-strong)',
+        borderRadius: 'var(--radius-pill)',
+        background: 'var(--surface)',
+      }}
     >
       <input
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         disabled={disabled}
-        placeholder={isStreaming ? 'Agent is working…' : 'Ask about the chart or request analysis…'}
-        className="flex-1 bg-transparent px-3 py-2 text-sm outline-none disabled:opacity-50"
+        placeholder={isStreaming ? 'Analyzing…' : 'Ask about the chart…'}
+        className="flex-1 bg-transparent py-2 text-sm outline-none disabled:opacity-50"
         style={{ color: 'var(--text)' }}
       />
       <button
         type="submit"
         disabled={disabled || !value.trim()}
         aria-label="Send message"
-        className="tm-btn tm-btn-primary !px-3.5 !py-2.5"
+        className="tm-btn tm-btn-primary !p-2"
       >
-        <span className="material-symbol" style={{ fontSize: 18 }}>
+        <span className="material-symbol" style={{ fontSize: 17 }}>
           arrow_upward
         </span>
       </button>
@@ -240,6 +308,17 @@ function createStreamHandler() {
   const resultTargets = new Map<string, string>()
   let pendingTextId: string | null = null
 
+  // Events often arrive in one burst (thinking + plan + task calls). Give
+  // each assistant message a staggered reveal timestamp so the UI unfolds
+  // sequentially instead of dumping everything at once.
+  const STAGGER_MS = 700
+  let lastRevealAt = 0
+  function addPaced(message: ChatMessage) {
+    const revealAt = Math.max(Date.now(), lastRevealAt + STAGGER_MS)
+    lastRevealAt = revealAt
+    store.addMessage({ ...message, revealAt })
+  }
+
   function endText() {
     pendingTextId = null
   }
@@ -248,7 +327,7 @@ function createStreamHandler() {
     switch (evt.event_type) {
       case 'thinking':
         endText()
-        store.addMessage({
+        addPaced({
           id: nextId('thinking'),
           role: 'assistant',
           type: 'thinking',
@@ -266,7 +345,7 @@ function createStreamHandler() {
         if (name === 'think_tool') {
           const reflection = typeof args.reflection === 'string' ? args.reflection : ''
           if (reflection.trim()) {
-            store.addMessage({
+            addPaced({
               id: nextId('thinking'),
               role: 'assistant',
               type: 'thinking',
@@ -281,7 +360,7 @@ function createStreamHandler() {
         if (name === 'task' && evt.tool_call_id) {
           resultTargets.set(evt.tool_call_id, id)
         }
-        store.addMessage({
+        addPaced({
           id,
           role: 'assistant',
           type: 'tool_call',
@@ -309,7 +388,7 @@ function createStreamHandler() {
           store.updateMessage(pendingTextId, (m) => ({ ...m, content: m.content + text }))
         } else {
           pendingTextId = nextId('text')
-          store.addMessage({
+          addPaced({
             id: pendingTextId,
             role: 'assistant',
             type: 'text',
@@ -321,7 +400,7 @@ function createStreamHandler() {
 
       case 'error':
         endText()
-        store.addMessage({
+        addPaced({
           id: nextId('error'),
           role: 'assistant',
           type: 'text',
@@ -343,9 +422,6 @@ function runPendingActions() {
   if (store.pendingClearConversation) {
     store.setPendingClearConversation(false)
     store.resetConversation()
-  }
-  if (store.pendingChartSettings) {
-    store.setPendingChartSettings(null)
   }
   if (store.pendingLoadChart) {
     store.setPendingLoadChart(false)

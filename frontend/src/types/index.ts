@@ -57,14 +57,6 @@ export interface DailyChange {
   changePct: number
 }
 
-export interface SidebarSettings {
-  assetType: AssetType
-  symbol: string
-  interval: string
-  bars: number
-  indicators: IndicatorSettings
-}
-
 // ---- Chat / streaming types ----
 
 export interface TaskArgs {
@@ -90,6 +82,12 @@ export interface ChatMessage {
   /** For a `tool_call` whose result should render inline (e.g. the task tool). */
   toolCallId?: string
   result?: string | null
+  /**
+   * Epoch ms before which the message stays hidden. Stream events often
+   * arrive in bursts; staggering reveals keeps a sequential feel
+   * (think → plan → sub-agents).
+   */
+  revealAt?: number
 }
 
 export interface StreamEvent {

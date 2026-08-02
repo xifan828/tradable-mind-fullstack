@@ -90,9 +90,13 @@ class TwelveData:
             return filtered_df
 
     def _calculate_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Calculate technical indicators using TA-Lib on filtered data."""
-        if df is None or df.empty or len(df) < 100:
-            # Need enough data for EMA100
+        """Calculate technical indicators using TA-Lib on filtered data.
+
+        Indicators with a longer lookback than the available data (e.g. EMA100
+        on <100 bars) come back as NaN rather than being skipped, so the
+        columns always exist for downstream chart/context code.
+        """
+        if df is None or df.empty:
             return df
 
         close = df['Close'].values
@@ -161,9 +165,12 @@ class TwelveData:
     def get_data_with_ti(self) -> pd.DataFrame:
         """Fetch OHLC data, filter non-trading hours, then calculate indicators using TA-Lib."""
         try:
-            # For forex/commodity, fetch extra data to compensate for weekend filtering
-            # Weekends are ~2/7 of the week, so fetch ~1.5x to ensure enough data after filtering
-            # Also need extra for indicator warmup (EMA100 needs 100 bars)
+            # Need outputsize rows plus warmup for the longest indicator (EMA100).
+            min_rows = self.outputsize + 100
+
+            # For forex/commodity, fetch extra data to compensate for weekend filtering.
+            # Some feeds include weekend rows that _filter_non_trading_hours drops,
+            # so the buffer is a starting point and we refetch larger if needed.
             fetch_size = self.outputsize
             if self.asset_type in ("forex", "commodity"):
                 # Fetch 1.5x + 200 extra for indicator warmup and weekend filtering
@@ -172,41 +179,51 @@ class TwelveData:
                 # For other assets, just add warmup buffer
                 fetch_size = self.outputsize + 200
 
-            # TwelveData API has a max of 5000 data points per request
-            fetch_size = min(fetch_size, 5000)
+            while True:
+                # TwelveData API has a max of 5000 data points per request
+                fetch_size = min(fetch_size, 5000)
 
-            # Fetch raw OHLC data
-            data = self.client.time_series(
-                symbol=self.symbol,
-                interval=self.interval,
-                outputsize=fetch_size,
-                exchange=self.exchange,
-                timezone=self.timezone,
-                start_date=self.start_date,
-                end_date=self.end_date,
-            ).as_pandas()
+                # Fetch raw OHLC data
+                data = self.client.time_series(
+                    symbol=self.symbol,
+                    interval=self.interval,
+                    outputsize=fetch_size,
+                    exchange=self.exchange,
+                    timezone=self.timezone,
+                    start_date=self.start_date,
+                    end_date=self.end_date,
+                ).as_pandas()
 
-            # Reverse to oldest-first and reset index
-            df = data[::-1].reset_index()
+                # Reverse to oldest-first and reset index
+                df = data[::-1].reset_index()
 
-            # Rename columns
-            df = df.rename(columns={
-                "datetime": "Date",
-                "open": "Open",
-                "high": "High",
-                "low": "Low",
-                "close": "Close",
-                "volume": "Volume",
-            })
+                # Rename columns
+                df = df.rename(columns={
+                    "datetime": "Date",
+                    "open": "Open",
+                    "high": "High",
+                    "low": "Low",
+                    "close": "Close",
+                    "volume": "Volume",
+                })
 
-            # Keep OHLC columns, plus Volume if available
-            cols = ['Date', 'Open', 'High', 'Low', 'Close']
-            if 'Volume' in df.columns:
-                cols.append('Volume')
-            df = df[cols]
+                # Keep OHLC columns, plus Volume if available
+                cols = ['Date', 'Open', 'High', 'Low', 'Close']
+                if 'Volume' in df.columns:
+                    cols.append('Volume')
+                df = df[cols]
 
-            # Filter non-trading hours first
-            df = self._filter_non_trading_hours(df)
+                # Filter non-trading hours first
+                df = self._filter_non_trading_hours(df)
+
+                if len(df) >= min_rows:
+                    break
+                if fetch_size >= 5000 or len(data) < fetch_size:
+                    # API limit reached or no more history available;
+                    # proceed with what we have (short-lookback indicators
+                    # still compute, longer ones come back as NaN).
+                    break
+                fetch_size *= 2
 
             # Calculate indicators on filtered data using TA-Lib
             df = self._calculate_indicators(df)
