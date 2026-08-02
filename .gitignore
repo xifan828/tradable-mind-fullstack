@@ -1,3 +1,9 @@
 # Claude Code
 .claude/
 CLAUDE.md
+
+# Runtime-generated chart data
+backend/data/
+
+# Claude skills lockfiles
+skills-lock.json
