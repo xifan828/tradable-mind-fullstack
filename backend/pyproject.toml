@@ -1,9 +1,9 @@
 [project]
-name = "agent"
-version = "0.0.1"
-description = "Starter template for making a new agent LangGraph."
+name = "tradable-mind-backend"
+version = "0.1.0"
+description = "LangGraph backend for Tradable Mind: multi-agent AI market analysis with chart and quant agents."
 authors = [
-    { name = "William Fu-Hinthorn", email = "13333726+hinthornw@users.noreply.github.com" },
+    { name = "Xifan Wang", email = "xifan828@gmail.com" },
 ]
 readme = "README.md"
 license = { text = "MIT" }
