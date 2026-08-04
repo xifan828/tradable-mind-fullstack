@@ -65,3 +65,8 @@ class OrchestratorContext:
     max_concurrent_tasks: int = 4
     min_research_iterations: int = 2
     asset_type: AssetType | None = None  # Asset type for market hours filtering
+    # Chart the user is looking at in the UI. Used to build the first-turn user
+    # prompt (see agents/user_context.py); the UI is the source of truth here.
+    symbol: str | None = None
+    interval: str | None = None
+    indicators: str | None = None  # comma-separated labels, e.g. "EMA 20, RSI"

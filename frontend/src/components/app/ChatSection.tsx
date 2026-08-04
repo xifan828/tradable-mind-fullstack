@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { useAppStore } from '../../store/useAppStore'
 import { langGraphClient, normalizeChunk } from '../../lib/agentClient'
 import { MODEL_MAP } from '../../types'
-import type { ChatMessage, StreamEvent } from '../../types'
+import type { ChatMessage, IndicatorSettings, StreamEvent } from '../../types'
 import AgentConfigExpander from './AgentConfigExpander'
 import ChatMessageItem from './ChatMessageItem'
 import WelcomeCard from './WelcomeCard'
@@ -11,6 +11,27 @@ let msgCounter = 0
 function nextId(prefix: string) {
   msgCounter += 1
   return `${prefix}-${Date.now()}-${msgCounter}`
+}
+
+const INDICATOR_LABELS: Record<keyof IndicatorSettings, string> = {
+  ema_10: 'EMA 10',
+  ema_20: 'EMA 20',
+  ema_50: 'EMA 50',
+  ema_100: 'EMA 100',
+  bb: 'Bollinger Bands',
+  rsi: 'RSI',
+  macd: 'MACD',
+  atr: 'ATR',
+  pivot: 'Pivot Points',
+  volume: 'Volume',
+}
+
+/** Active indicators as a comma-separated label list for the agent's prompt. */
+function formatActiveIndicators(indicators: IndicatorSettings): string {
+  const activeLabels = (Object.keys(INDICATOR_LABELS) as Array<keyof IndicatorSettings>)
+    .filter((key) => indicators[key])
+    .map((key) => INDICATOR_LABELS[key])
+  return activeLabels.length > 0 ? activeLabels.join(', ') : 'none'
 }
 
 interface ChatSectionProps {
@@ -222,6 +243,9 @@ async function sendMessage(query: string) {
   const {
     geminiApiKey,
     currentAssetType,
+    currentSymbol,
+    currentInterval,
+    currentIndicators,
     agentModelLabel,
     subagentModelLabel,
     minResearchIterations,
@@ -247,11 +271,16 @@ async function sendMessage(query: string) {
       store.setThreadId(threadId)
     }
 
+    // The chart state goes through `context`; the backend folds it into the
+    // first-turn prompt alongside live session data the UI doesn't have.
     const streamResponse = langGraphClient.runs.stream(threadId, 'agent', {
       input: { messages: [{ role: 'human', content: query }] },
       context: {
         api_key: geminiApiKey,
         asset_type: currentAssetType,
+        symbol: currentSymbol,
+        interval: currentInterval,
+        indicators: formatActiveIndicators(currentIndicators),
         model_name: MODEL_MAP[agentModelLabel],
         subagent_model_name: MODEL_MAP[subagentModelLabel],
         min_research_iterations: minResearchIterations,

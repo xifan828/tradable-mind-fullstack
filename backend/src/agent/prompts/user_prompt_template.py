@@ -4,9 +4,9 @@ USER_PROMPT_TEMPLATE = """\
 </user_question>
 
 <user_preference>
-Asset being analyzed: {asset}. **IMPORTANT, strickly use this asset symbol when delegating tasks to subagents.**
+Asset being analyzed: {asset}. **IMPORTANT, strictly use this asset symbol when delegating tasks to subagents.**
 Chart interval: {chart_interval}. This is the main timeframe.
-Technical indicators: {technical_indicators}. MUSR use these indicators in the analysis.
+Technical indicators: {technical_indicators}. MUST use these indicators in the analysis.
 </user_preference>
 
 <session-context>
