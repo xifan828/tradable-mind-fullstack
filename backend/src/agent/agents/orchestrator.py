@@ -9,6 +9,7 @@ from agent.tools.todo_tools import write_todos, read_todos
 from agent.tools.think_tool import think_tool
 from agent.tools.task_tool import task
 from agent.agents.quant_agent import dynamic_model_from_context
+from agent.agents.user_context import augment_first_user_message
 
 ORCHESTRATOR_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "orchestrator.md"
 ORCHESTRATOR_SYSTEM_PROMPT = ORCHESTRATOR_PROMPT_PATH.read_text(encoding="utf-8")
@@ -29,6 +30,10 @@ orchestrator_agent = create_agent(
     system_prompt=ORCHESTRATOR_SYSTEM_PROMPT,
     state_schema=OrchestratorState,
     context_schema=OrchestratorContext,
-    middleware=[dynamic_model_from_context, orchestrator_system_prompt_from_context],
+    middleware=[
+        augment_first_user_message,
+        dynamic_model_from_context,
+        orchestrator_system_prompt_from_context,
+    ],
     #checkpointer=checkpointer
 )

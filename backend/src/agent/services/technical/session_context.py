@@ -244,7 +244,7 @@ class SessionContextService:
 
         result = self._aggregate(df, start, max_bars)
         if result is None:
-            raise RuntimeError(f"No session bars found for {symbol} in window [{start}, {end}]")
+            raise RuntimeError(f"No session bars found for {symbol} starting at {start}")
 
         open_, high, low, close = result
         change = close - open_
