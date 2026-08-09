@@ -395,6 +395,109 @@ body {
     border: 1px solid color-mix(in srgb, var(--brand) 25%, transparent);
   }
 
+  /* Hero eyebrow — instrument-panel pill. Two segments: a live status the
+     pulsing dot actually earns, and the engine credit in a quieter slot. */
+  .tm-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 0.4rem 0.9rem 0.4rem 0.72rem;
+    border-radius: var(--radius-pill);
+    color: var(--text-muted);
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-sm);
+  }
+  .tm-eyebrow-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background: var(--brand);
+    box-shadow: 0 0 0 3px var(--brand-soft);
+  }
+  .tm-eyebrow-sep {
+    width: 1px;
+    height: 0.9em;
+    background: var(--border-strong);
+  }
+
+  /* Hero headline — pure ink, tight tracking, fluid to the viewport.
+     Weight commits (760) instead of hedging in the mid-600s. */
+  .tm-hero-title {
+    font-family: var(--font-display);
+    font-weight: 760;
+    font-size: clamp(2.6rem, 6vw, 4.3rem);
+    line-height: 1.03;
+    letter-spacing: -0.038em;
+    color: var(--text);
+  }
+
+  /* Signal-orange marker stroke under the phrase that carries the claim.
+     The one accent moment in the hero — the 20% side of the 80/20 rule. */
+  .tm-mark {
+    position: relative;
+    white-space: nowrap;
+  }
+  .tm-mark-stroke {
+    position: absolute;
+    display: block;
+    left: 0;
+    right: 0;
+    bottom: 0.05em;
+    height: 0.082em;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(
+      90deg,
+      var(--accent-2),
+      color-mix(in srgb, var(--accent-2) 40%, transparent)
+    );
+    transform: scaleX(0);
+    transform-origin: left center;
+    animation: tm-stroke-in 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.6s forwards;
+  }
+
+  .tm-hero-sub {
+    max-width: 31rem;
+    font-size: 1.07rem;
+    line-height: 1.62;
+    color: var(--text-muted);
+    text-wrap: pretty;
+  }
+
+  /* "Ask Tradable Mind about…" cycler — reserve two lines so the hero
+     doesn't jump as questions type and delete. Sits a step above the
+     explainer paragraph in size so the "just ask" idea leads. */
+  .tm-ask {
+    min-height: calc(2 * 1.55em);
+    font-size: 1.18rem;
+    line-height: 1.55;
+  }
+  .tm-ask-q {
+    color: var(--text);
+    font-weight: 550;
+  }
+  .tm-ask-caret {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    margin-left: 1px;
+    vertical-align: text-bottom;
+    background: var(--accent-2);
+    animation: tm-caret-blink 1s step-end infinite;
+  }
+  @keyframes tm-caret-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
   /* Glassy frame for floating media / panels */
   .tm-glass {
     background: color-mix(in srgb, var(--surface) 78%, transparent);
@@ -531,6 +634,10 @@ input[type='radio']:disabled {
 .tm-reveal {
   opacity: 0;
   animation: tm-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes tm-stroke-in {
+  to { transform: scaleX(1); }
 }
 
 @keyframes tm-fade-in {
