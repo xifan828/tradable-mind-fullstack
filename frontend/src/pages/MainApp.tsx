@@ -1,5 +1,4 @@
 import { useCallback, useEffect } from 'react'
-import { Navigate } from 'react-router-dom'
 import ChartToolbar from '../components/app/ChartToolbar'
 import PriceHeader from '../components/app/PriceHeader'
 import CandlestickChart from '../components/app/CandlestickChart'
@@ -8,7 +7,6 @@ import { useAppStore } from '../store/useAppStore'
 import { fetchChartData } from '../lib/chartApi'
 
 export default function MainApp() {
-  const geminiApiKey = useAppStore((s) => s.geminiApiKey)
   const chartLoaded = useAppStore((s) => s.chartLoaded)
   const chartLoading = useAppStore((s) => s.chartLoading)
   const chartError = useAppStore((s) => s.chartError)
@@ -85,10 +83,6 @@ export default function MainApp() {
     window.addEventListener('tm:load-chart', onLoadChartEvent)
     return () => window.removeEventListener('tm:load-chart', onLoadChartEvent)
   }, [loadChart])
-
-  if (!geminiApiKey) {
-    return <Navigate to="/" replace />
-  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden" style={{ background: 'var(--canvas)' }}>
