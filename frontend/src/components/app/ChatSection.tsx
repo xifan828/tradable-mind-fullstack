@@ -107,18 +107,6 @@ export default function ChatSection({ onClearConversation }: ChatSectionProps) {
           </div>
         )}
 
-        {!geminiApiKey && (
-          <div
-            className="mb-4 flex items-center gap-2 border-l-2 py-1.5 pl-3 text-sm"
-            style={{ borderColor: 'var(--warn)', color: 'var(--warn)' }}
-          >
-            <span className="material-symbol" style={{ fontSize: 18 }}>
-              key
-            </span>
-            Enter your Gemini API key to enable AI analysis chat.
-          </div>
-        )}
-
         <div className="space-y-3">
           {messages.length === 0 && !isStreaming && <WelcomeCard />}
           {messages.map((m) => (
@@ -183,9 +171,8 @@ function ThinkingIndicator() {
 function ChatInput() {
   const [value, setValue] = useState('')
 
-  const geminiApiKey = useAppStore((s) => s.geminiApiKey)
   const isStreaming = useAppStore((s) => s.isStreaming)
-  const disabled = !geminiApiKey || isStreaming
+  const disabled = isStreaming
 
   // Suggested prompts (WelcomeCard) fill the composer via this event.
   useEffect(() => {
@@ -276,7 +263,7 @@ async function sendMessage(query: string) {
     const streamResponse = langGraphClient.runs.stream(threadId, 'agent', {
       input: { messages: [{ role: 'human', content: query }] },
       context: {
-        api_key: geminiApiKey,
+        api_key: geminiApiKey || undefined,
         asset_type: currentAssetType,
         symbol: currentSymbol,
         interval: currentInterval,

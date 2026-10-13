@@ -3,8 +3,8 @@ export type ModelLabel = 'Gemini 3 Flash' | 'Gemini 3.1 Pro'
 export type ThemeMode = 'light' | 'dark'
 
 export const MODEL_MAP: Record<ModelLabel, string> = {
-  'Gemini 3 Flash': 'models/gemini-3-flash-preview',
-  'Gemini 3.1 Pro': 'models/gemini-3.1-pro-preview',
+  'Gemini 3 Flash': 'google/gemini-3-flash-preview',
+  'Gemini 3.1 Pro': 'google/gemini-3.1-pro-preview',
 }
 
 export interface OHLCRow {
