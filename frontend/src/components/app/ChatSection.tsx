@@ -41,7 +41,6 @@ interface ChatSectionProps {
 export default function ChatSection({ onClearConversation }: ChatSectionProps) {
   const messages = useAppStore((s) => s.messages)
   const isStreaming = useAppStore((s) => s.isStreaming)
-  const geminiApiKey = useAppStore((s) => s.geminiApiKey)
   const chartLoaded = useAppStore((s) => s.chartLoaded)
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
