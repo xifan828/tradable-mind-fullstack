@@ -28,6 +28,7 @@ dependencies = [
     "pytz>=2024.1",
     "fastapi",
     "tzdata",
+    "langchain-openai>=1.7.1",
 ]
 
 
