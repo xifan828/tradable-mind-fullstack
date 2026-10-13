@@ -10,8 +10,10 @@ export default function ApiKeyForm() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const trimmed = apiKey.trim()
-    if (!trimmed) return
-    setGeminiApiKey(trimmed)
+    // The key is optional: the backend uses OPENROUTER_API_KEY from its .env
+    // when the browser doesn't send one. A key entered here acts as a
+    // per-browser override.
+    if (trimmed) setGeminiApiKey(trimmed)
     navigate('/app')
   }
 
@@ -22,7 +24,7 @@ export default function ApiKeyForm() {
           type="password"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          placeholder="Your Gemini API key"
+          placeholder="API key (optional — server key used by default)"
           className="tm-input flex-1 !rounded-[var(--radius-pill)] !px-5 !py-3 !text-[0.95rem]"
           autoComplete="off"
         />
@@ -34,23 +36,11 @@ export default function ApiKeyForm() {
         </button>
       </form>
       <p className="mt-4 flex flex-col gap-1 text-[0.82rem]" style={{ color: 'var(--text-muted)' }}>
-        <a
-          href="https://aistudio.google.com/app/apikey"
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 font-semibold underline decoration-[color:var(--brand-ring)] underline-offset-2 transition-colors hover:opacity-80"
-          style={{ color: 'var(--brand)' }}
-        >
-          <span className="material-symbol" style={{ fontSize: 15 }}>
-            north_east
-          </span>
-          Get your Gemini API key from Google AI Studio
-        </a>
         <span className="inline-flex items-center gap-1.5" style={{ color: 'var(--text-faint)' }}>
-          <span className="material-symbol" style={{ fontSize: 15, color: 'var(--warn)' }}>
-            warning
+          <span className="material-symbol" style={{ fontSize: 15, color: 'var(--brand)' }}>
+            key
           </span>
-          Requires a paid tier — free API keys will not work. The key stays in your browser.
+          Leave empty to use the server's key. Enter an OpenRouter key here only to override it for this browser.
         </span>
       </p>
     </div>
