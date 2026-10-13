@@ -8,10 +8,10 @@ from langchain_openai import ChatOpenAI
 load_dotenv()
 
 openrouter_model_map = {
-    "2.5_pro": "google/gemini-2.5-pro",
-    "2.5_flash": "google/gemini-2.5-flash",
-    "3_pro": "google/gemini-3.1-pro-preview",
-    "3_flash": "google/gemini-3-flash-preview",
+    "deepseek": "deepseek/deepseek-v4.1-flash",
+    "gemini": "google/gemini-3.8-flash",
+    "kimi": "moonshotai/kimi-k3",
+    "glm": "z-ai/glm-5.3-flashx",
 }
 
 
@@ -43,7 +43,7 @@ def build_openrouter_model(
 
 async def ainvoke_model(
     input: str | list[BaseMessage] | list[tuple[str, str]],
-    model_type: Literal["2.5_pro", "2.5_flash", "3_pro", "3_flash"],
+    model_type: Literal["deepseek", "gemini", "kimi", "glm"],
     **llm_kwargs,
 ) -> AIMessage:
     if model_type not in openrouter_model_map:
@@ -54,7 +54,7 @@ async def ainvoke_model(
 
 def invoke_model(
     input: str | list[BaseMessage] | list[tuple[str, str]],
-    model_type: Literal["2.5_pro", "2.5_flash", "3_pro", "3_flash"],
+    model_type: Literal["deepseek", "gemini", "kimi", "glm"],
     **llm_kwargs,
 ) -> AIMessage:
     if model_type not in openrouter_model_map:

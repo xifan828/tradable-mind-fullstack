@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import type { ModelLabel } from '../../types'
 
-const MODEL_LABELS: ModelLabel[] = ['Gemini 3 Flash', 'Gemini 3.1 Pro']
+const MODEL_LABELS: ModelLabel[] = ['DeepSeek V4.1 Flash', 'Gemini 3.8 Flash', 'Kimi K3', 'GLM 5.3 FlashX']
 
 export default function AgentConfigExpander() {
   const [open, setOpen] = useState(false)

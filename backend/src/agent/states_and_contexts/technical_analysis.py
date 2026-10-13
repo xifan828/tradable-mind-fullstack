@@ -24,7 +24,7 @@ class QuantAgentState(AgentState):
 class QuantAgentContext:
     """Runtime context for the quant analysis agent."""
     api_key: str | None = None
-    model_name: str = "google/gemini-3-flash-preview"
+    model_name: str = "google/gemini-3.8-flash"
     max_iterations: int = 10
     session_data_dir: str | None = None  # Session-specific temp directory for data files
     asset_type: AssetType | None = None  # Asset type for market hours filtering
@@ -43,7 +43,7 @@ class ChartAnalysisInput(BaseModel):
 class ChartAgentContext:
     """Runtime context for the chart analysis agent."""
     api_key: str | None = None
-    model_name: str = "google/gemini-3-flash-preview"
+    model_name: str = "google/gemini-3.8-flash"
     asset_type: AssetType | None = None  # Asset type for market hours filtering
 
 # ========================================
@@ -59,8 +59,8 @@ class OrchestratorState(AgentState):
 @dataclass
 class OrchestratorContext:
     api_key: str | None = None
-    model_name: str = "google/gemini-3-flash-preview"
-    subagent_model_name: str = "google/gemini-3-flash-preview"
+    model_name: str = "google/gemini-3.8-flash"
+    subagent_model_name: str = "google/gemini-3.8-flash"
     max_research_iterations: int = 5
     max_concurrent_tasks: int = 4
     min_research_iterations: int = 2

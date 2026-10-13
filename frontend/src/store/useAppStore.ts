@@ -11,6 +11,7 @@ import type {
   PivotLevels,
   ThemeMode,
 } from '../types'
+import { MODEL_MAP } from '../types'
 
 const DEFAULT_INDICATORS: IndicatorSettings = {
   ema_10: false,
@@ -132,8 +133,8 @@ export const useAppStore = create<AppState>()(
       minResearchIterations: 2,
       maxResearchIterations: 6,
       maxConcurrentTasks: 4,
-      agentModelLabel: 'Gemini 3 Flash' as ModelLabel,
-      subagentModelLabel: 'Gemini 3 Flash' as ModelLabel,
+      agentModelLabel: 'Gemini 3.8 Flash' as ModelLabel,
+      subagentModelLabel: 'Gemini 3.8 Flash' as ModelLabel,
       setMinResearchIterations: (n) => set({ minResearchIterations: n }),
       setMaxResearchIterations: (n) => set({ maxResearchIterations: n }),
       setMaxConcurrentTasks: (n) => set({ maxConcurrentTasks: n }),
@@ -192,12 +193,18 @@ export const useAppStore = create<AppState>()(
         chatWidth: s.chatWidth,
       }),
       // Spread persisted indicators over the defaults so snapshots written
-      // before a new indicator key existed still get its default.
+      // before a new indicator key existed still get its default. Model
+      // labels from snapshots written before the model roster changed fall
+      // back to the current default instead of resolving to undefined.
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<AppState>
+        const validModel = (label: unknown): label is ModelLabel =>
+          typeof label === 'string' && label in MODEL_MAP
         return {
           ...current,
           ...p,
+          agentModelLabel: validModel(p.agentModelLabel) ? p.agentModelLabel : 'Gemini 3.8 Flash',
+          subagentModelLabel: validModel(p.subagentModelLabel) ? p.subagentModelLabel : 'Gemini 3.8 Flash',
           currentIndicators: { ...DEFAULT_INDICATORS, ...(p.currentIndicators ?? {}) },
         }
       },

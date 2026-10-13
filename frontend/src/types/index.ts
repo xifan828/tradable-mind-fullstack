@@ -1,10 +1,16 @@
 export type AssetType = 'forex' | 'commodity' | 'crypto' | 'stock'
-export type ModelLabel = 'Gemini 3 Flash' | 'Gemini 3.1 Pro'
+export type ModelLabel =
+  | 'DeepSeek V4.1 Flash'
+  | 'Gemini 3.8 Flash'
+  | 'Kimi K3'
+  | 'GLM 5.3 FlashX'
 export type ThemeMode = 'light' | 'dark'
 
 export const MODEL_MAP: Record<ModelLabel, string> = {
-  'Gemini 3 Flash': 'google/gemini-3-flash-preview',
-  'Gemini 3.1 Pro': 'google/gemini-3.1-pro-preview',
+  'DeepSeek V4.1 Flash': 'deepseek/deepseek-v4.1-flash',
+  'Gemini 3.8 Flash': 'google/gemini-3.8-flash',
+  'Kimi K3': 'moonshotai/kimi-k3',
+  'GLM 5.3 FlashX': 'z-ai/glm-5.3-flashx',
 }
 
 export interface OHLCRow {
