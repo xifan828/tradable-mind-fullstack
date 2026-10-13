@@ -1,7 +1,7 @@
 from langchain.agents import create_agent
 from langchain.agents.middleware import dynamic_prompt, ModelRequest, ModelResponse, wrap_model_call
 from typing import Callable
-from langchain_google_genai import ChatGoogleGenerativeAI
+from agent.utils.llm import build_openrouter_model
 
 from agent.states_and_contexts.technical_analysis import QuantAgentState, QuantAgentContext
 from agent.prompts.technical_analysis import QUANT_AGENT_SYSTEM_PROMPT
@@ -18,11 +18,7 @@ async def dynamic_model_from_context(
     model_name = request.runtime.context.model_name
     api_key = request.runtime.context.api_key
 
-    model = ChatGoogleGenerativeAI(
-        model=model_name,
-        api_key=api_key,
-        max_retries=0
-    )
+    model = build_openrouter_model(model_name, api_key=api_key)
 
     return await handler(request.override(model=model))
 
