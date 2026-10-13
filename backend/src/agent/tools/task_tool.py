@@ -106,7 +106,7 @@ class ChartAnalysisTask:
             {"messages": [human_message]},
             context=self.context
         )
-        chart_description = result["messages"][-1].content[0]["text"]
+        chart_description = parse_langchain_ai_message(result["messages"][-1])
         return chart_description
     
     async def synthesize_technical_analysis(self, encoded_chart: str, chart_description: str, current_price: float) -> str:
@@ -134,7 +134,7 @@ class ChartAnalysisTask:
             {"messages": [human_message]},
             context=self.context
         )
-        technical_analysis = result["messages"][-1].content[0]["text"]
+        technical_analysis = parse_langchain_ai_message(result["messages"][-1])
         return technical_analysis
     
     async def execute(self) -> str:
@@ -220,7 +220,7 @@ async def task(
             messages = result.get("messages", [])
             if messages:
                 last_msg = messages[-1]
-                return last_msg.content[0]["text"]
+                return parse_langchain_ai_message(last_msg)
             return "No response from quantitative agent."
         finally:
             # Clean up session temp directory
