@@ -28,6 +28,7 @@ dependencies = [
     "fastapi",
     "tzdata",
     "langchain-openai>=1.7.1",
+    "langchain-google-genai>=4.4.2",
 ]
 
 

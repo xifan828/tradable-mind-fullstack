@@ -16,9 +16,14 @@ async def dynamic_model_from_context(
     handler: Callable[[ModelRequest], ModelResponse]
 ) -> ModelResponse:
     model_name = request.runtime.context.model_name
-    api_key = request.runtime.context.api_key
 
-    model = build_openrouter_model(model_name, api_key=api_key)
+    # The OpenRouter key always comes from OPENROUTER_API_KEY (backend/.env);
+    # the caller never supplies one. The effort level comes from the same
+    # context, so each agent thinks as hard as its own context asks.
+    model = build_openrouter_model(
+        model_name,
+        reasoning_effort=getattr(request.runtime.context, "reasoning_effort", None),
+    )
 
     return await handler(request.override(model=model))
 

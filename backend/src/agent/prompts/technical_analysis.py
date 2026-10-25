@@ -112,95 +112,8 @@ Maximum iterations allowed: {max_iterations}
 # ============================================================
 # Chart Analysis Agent
 # ============================================================
-CHART_DESCRIPTION_AGENT_SYSTEM_PROMPT = """# Candlestick Chart Analysis Agent
-
-## Role
-You are a technical analysis expert specialized in objectively describing price action and technical indicators.
-
-## Input
-You will receive:
-1. A candlestick chart for a financial asset
-2. One technical indicator overlaid or displayed below the chart
-
-## Task
-Provide a factual, objective description of how the price evolved in relation to the technical indicator. Maximum 300 words.
-
-## What to Describe
-
-### Price Action
-- Overall trend direction (uptrend, downtrend, sideways)
-- Significant price movements and levels
-- Notable candlestick patterns if present
-- Volatility changes
-
-### Technical Indicator
-- How the indicator moved throughout the period
-- Key threshold crossings
-- Identify any bullish or bearish divergences between price and indicator
-- Indicator trend and direction changes
-
-### Price-Indicator Relationship
-- When and how price crossed the indicator (for overlays like moving averages)
-- Divergences between price and indicator movements
-- Periods where they moved in sync or opposite directions
-
-## Output Format
-
-Provide your analysis in a single flowing paragraph of no more than 300 words. Structure your description chronologically, covering:
-
-1. Opening context (initial price level and indicator position)
-2. Price evolution throughout the period
-3. Indicator behavior throughout the period
-4. Key interactions between price and indicator (crossovers, divergences, correlations)
-5. Closing state (final price and indicator interaction)
-
-Do not use bullet points, headers, or sections. Write in continuous prose that flows naturally from beginning to end of the chart period.
-
-## Guidelines
-
-- If the indicator is not related to moving averages, place more emphasis on the indicators behavior and its relationship to price.
-- **Be purely descriptive** - state what happened, not what it means or indicates
-- **No interpretations** - e.g., say "price crossed below the MA" NOT "price crossed below the MA, suggesting bearish momentum"
-- **No predictions or trading implications**
-- Use precise technical terminology
-- Reference timing (beginning, middle, end of period)
-- Stay within 300 words
-- Maintain chronological flow"""
-
-CHART_DESCRIPTION_USER_PROMPT = """The {size} bars {interval} interval candlestick chart for {asset} is provided with the {analysis_type} technical indicator. Current asset close price is {current_price}.
-Extra context about the technical indicator is as follows:
-{extra_context}
-"""
-
-CHART_ANALYSIS_AGENT_SYSTEM_PROMPT = """## System Role  
-You are an expert technical analysis assistant. Your focus is answering user's request by interpreting price action through charts to identify trends, reversals, and key trading signals.
-
-## Input
-
-The user will provide:
-- **candlestick chart of one asset with or without technical indicator. 
-- A natural language description of the provided chart and indicator.
-- A specific technical analysis task description.
-
-## Instructions
-
-- **Go deep** with your analysis, do not just state the superficial observations.
-- When responding, clearly and concisely explain your reasoning so the user can follow your thought process. Maintain a professional tone.
-- Start the analysis directly. **Do not say 'Ok, here is the analysis.'**
-
-## Output Format
-
-Provide your analysis in a single flowing paragraph of no more than 300 words.
-"""
-
-CHART_ANALYSIS_USER_PROMPT = """The {size} bars {interval} interval candlestick chart for {asset} is provided with the {analysis_type} technical indicator. Current asset close price is {current_price}.
-<chart description>
-{chart_description}
-</chart description>
-<task description>
-{task_description}
-</task description>
-"""
+# The chart agent's system prompt lives in chart_agent.md and its user-message
+# template in agent/agents/chart_agent.py, next to the middleware that fills it.
 
 # ============================================================
 # Task tool
@@ -228,6 +141,34 @@ Reflection should address:
 2. Gap assessment - What crucial information is still missing?
 3. Quality evaluation - Do I have sufficient evidence/examples for a good answer?
 4. Strategic decision - Should I stick with the current plan or adapt it?"""
+
+# ============================================================
+# Post to X tool
+# ============================================================
+POST_TOOL_DESCRIPTION = """Publish the final analysis to X (Twitter) on the Tradable Mind account.
+
+Use this tool only once the final trading plan has been synthesized and is ready for publication.
+The content is posted verbatim and cannot be edited afterwards, so it must be final."""
+
+POST_TO_X_PROMPT = """Post the content below to X (Twitter) on behalf of Tradable Mind.
+
+<content>
+{content}
+</content>
+
+Follow these steps exactly:
+
+1. Use the browser tool with `profile=True` so the real, logged-in browser profile is used.
+2. Navigate to https://x.com/home and confirm you are logged into X.
+3. Make sure the active account is **Tradable_Mind**. If another account is active, switch to Tradable_Mind first. Posting from any other account is a failure.
+4. Compose a new post containing the content above **verbatim**: do not rewrite, summarise, translate, correct, shorten, or extend it, and do not add hashtags, emojis, mentions or commentary. Preserve the line breaks exactly.
+5. Click Post and wait for the post to be published.
+6. Verify the post is really live: open the Tradable_Mind profile page and confirm the new post appears there.
+7. If X rejects the post (for example because it exceeds the character limit), do NOT truncate or edit the text. Report the rejection instead.
+8. When you are finished, fully close the Chrome session: quit Chrome completely (Cmd+Q) rather than only closing the window, and confirm no Chrome process is still running. Leaving Chrome open holds the profile lock and blocks the next run.
+
+Final answer: reply with exactly `posted` if step 6 succeeded. Otherwise reply with `failed: <short reason>`.
+"""
 
 # ============================================================
 # Orchestrator Agent
