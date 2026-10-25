@@ -13,6 +13,16 @@ export const MODEL_MAP: Record<ModelLabel, string> = {
   'GLM 5.3 FlashX': 'z-ai/glm-5.3-flashx',
 }
 
+/**
+ * Thinking budget sent to the backend as `reasoning_effort` /
+ * `subagent_reasoning_effort`, forwarded to OpenRouter as
+ * `reasoning: { effort }`. Keep in sync with REASONING_EFFORTS in the backend
+ * (src/agent/utils/llm.py), which falls back to "medium" for anything it does
+ * not recognize.
+ */
+export const REASONING_EFFORTS = ['low', 'medium', 'high'] as const
+export type ReasoningEffort = (typeof REASONING_EFFORTS)[number]
+
 export interface OHLCRow {
   Date: string
   DateLabel: string

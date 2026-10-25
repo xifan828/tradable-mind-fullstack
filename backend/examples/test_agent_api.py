@@ -1,14 +1,15 @@
 from langgraph_sdk import get_client
 import asyncio
-import os
 from dotenv import load_dotenv
 load_dotenv()
 
 client = get_client(url="http://localhost:2024")
 
 context = {
-    "api_key": os.getenv("GEMINI_API_KEY"),
     "asset_type": "forex",
+    # Thinking budget per agent: "low" | "medium" | "high". Omit for "medium".
+    "reasoning_effort": "high",
+    "subagent_reasoning_effort": "low",
 }
 
 async def main(query: str):

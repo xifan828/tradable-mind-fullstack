@@ -227,13 +227,14 @@ function ChatInput() {
 async function sendMessage(query: string) {
   const store = useAppStore.getState()
   const {
-    geminiApiKey,
     currentAssetType,
     currentSymbol,
     currentInterval,
     currentIndicators,
     agentModelLabel,
     subagentModelLabel,
+    agentReasoningEffort,
+    subagentReasoningEffort,
     minResearchIterations,
     maxResearchIterations,
     maxConcurrentTasks,
@@ -262,13 +263,14 @@ async function sendMessage(query: string) {
     const streamResponse = langGraphClient.runs.stream(threadId, 'agent', {
       input: { messages: [{ role: 'human', content: query }] },
       context: {
-        api_key: geminiApiKey || undefined,
         asset_type: currentAssetType,
         symbol: currentSymbol,
         interval: currentInterval,
         indicators: formatActiveIndicators(currentIndicators),
         model_name: MODEL_MAP[agentModelLabel],
         subagent_model_name: MODEL_MAP[subagentModelLabel],
+        reasoning_effort: agentReasoningEffort,
+        subagent_reasoning_effort: subagentReasoningEffort,
         min_research_iterations: minResearchIterations,
         max_research_iterations: maxResearchIterations,
         max_concurrent_tasks: maxConcurrentTasks,
@@ -288,7 +290,7 @@ async function sendMessage(query: string) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     const friendly = message.includes('free_tier')
-      ? 'Your Gemini API key appears to be a free-tier key. Please use a paid-tier key — see the rate limits page for details.'
+      ? 'The model provider rejected this run on rate limits (free tier). Please try again in a moment.'
       : message
     useAppStore.getState().addMessage({
       id: nextId('error'),

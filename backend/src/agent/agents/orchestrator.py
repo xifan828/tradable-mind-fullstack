@@ -8,6 +8,7 @@ from agent.states_and_contexts.technical_analysis import OrchestratorState, Orch
 from agent.tools.todo_tools import write_todos, read_todos
 from agent.tools.think_tool import think_tool
 from agent.tools.task_tool import task
+from agent.tools.post_tool import post_to_x
 from agent.agents.quant_agent import dynamic_model_from_context
 from agent.agents.user_context import augment_first_user_message
 
@@ -26,7 +27,8 @@ def orchestrator_system_prompt_from_context(request: ModelRequest) -> str:
 
 orchestrator_agent = create_agent(
     model=None,
-    tools=[write_todos, read_todos, think_tool, task],
+    # tools=[write_todos, read_todos, think_tool, task],
+    tools=[write_todos, read_todos, task, post_to_x],
     system_prompt=ORCHESTRATOR_SYSTEM_PROMPT,
     state_schema=OrchestratorState,
     context_schema=OrchestratorContext,

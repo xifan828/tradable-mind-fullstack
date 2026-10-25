@@ -9,9 +9,10 @@ import type {
   ModelLabel,
   OHLCRow,
   PivotLevels,
+  ReasoningEffort,
   ThemeMode,
 } from '../types'
-import { MODEL_MAP } from '../types'
+import { MODEL_MAP, REASONING_EFFORTS } from '../types'
 
 const DEFAULT_INDICATORS: IndicatorSettings = {
   ema_10: false,
@@ -32,10 +33,6 @@ function readTheme(): ThemeMode {
 }
 
 interface AppState {
-  // Auth
-  geminiApiKey: string
-  setGeminiApiKey: (key: string) => void
-
   // Chart
   chartData: OHLCRow[] | null
   currentSymbol: string
@@ -66,11 +63,15 @@ interface AppState {
   maxConcurrentTasks: number
   agentModelLabel: ModelLabel
   subagentModelLabel: ModelLabel
+  agentReasoningEffort: ReasoningEffort
+  subagentReasoningEffort: ReasoningEffort
   setMinResearchIterations: (n: number) => void
   setMaxResearchIterations: (n: number) => void
   setMaxConcurrentTasks: (n: number) => void
   setAgentModelLabel: (label: ModelLabel) => void
   setSubagentModelLabel: (label: ModelLabel) => void
+  setAgentReasoningEffort: (effort: ReasoningEffort) => void
+  setSubagentReasoningEffort: (effort: ReasoningEffort) => void
 
   // Chat
   messages: ChatMessage[]
@@ -101,12 +102,6 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
-      geminiApiKey: localStorage.getItem('geminiApiKey') || '',
-      setGeminiApiKey: (key) => {
-        localStorage.setItem('geminiApiKey', key)
-        set({ geminiApiKey: key })
-      },
-
       chartData: null,
       currentSymbol: 'EUR/USD',
       currentInterval: '4h',
@@ -135,11 +130,17 @@ export const useAppStore = create<AppState>()(
       maxConcurrentTasks: 4,
       agentModelLabel: 'Gemini 3.8 Flash' as ModelLabel,
       subagentModelLabel: 'Gemini 3.8 Flash' as ModelLabel,
+      // Matches the backend default (agents/utils/llm.py): medium unless asked
+      // otherwise, so the UI never sends "unspecified" and the run is explicit.
+      agentReasoningEffort: 'medium' as ReasoningEffort,
+      subagentReasoningEffort: 'medium' as ReasoningEffort,
       setMinResearchIterations: (n) => set({ minResearchIterations: n }),
       setMaxResearchIterations: (n) => set({ maxResearchIterations: n }),
       setMaxConcurrentTasks: (n) => set({ maxConcurrentTasks: n }),
       setAgentModelLabel: (label) => set({ agentModelLabel: label }),
       setSubagentModelLabel: (label) => set({ subagentModelLabel: label }),
+      setAgentReasoningEffort: (effort) => set({ agentReasoningEffort: effort }),
+      setSubagentReasoningEffort: (effort) => set({ subagentReasoningEffort: effort }),
 
       messages: [],
       isStreaming: false,
@@ -176,9 +177,9 @@ export const useAppStore = create<AppState>()(
     {
       name: 'tm-app-v1',
       version: 1,
-      // Only durable user preferences are persisted. geminiApiKey and
-      // themeMode stay on their manual localStorage keys: the pre-paint
-      // script in index.html reads the raw `themeMode` value.
+      // Only durable user preferences are persisted. themeMode stays on
+      // its manual localStorage key: the pre-paint script in index.html
+      // reads the raw `themeMode` value.
       partialize: (s) => ({
         currentSymbol: s.currentSymbol,
         currentInterval: s.currentInterval,
@@ -190,6 +191,8 @@ export const useAppStore = create<AppState>()(
         maxConcurrentTasks: s.maxConcurrentTasks,
         agentModelLabel: s.agentModelLabel,
         subagentModelLabel: s.subagentModelLabel,
+        agentReasoningEffort: s.agentReasoningEffort,
+        subagentReasoningEffort: s.subagentReasoningEffort,
         chatWidth: s.chatWidth,
       }),
       // Spread persisted indicators over the defaults so snapshots written
@@ -200,11 +203,17 @@ export const useAppStore = create<AppState>()(
         const p = (persisted ?? {}) as Partial<AppState>
         const validModel = (label: unknown): label is ModelLabel =>
           typeof label === 'string' && label in MODEL_MAP
+        // Same reasoning for the effort levels, which are persisted as raw
+        // strings and would otherwise reach the backend unvalidated.
+        const validEffort = (effort: unknown): effort is ReasoningEffort =>
+          typeof effort === 'string' && (REASONING_EFFORTS as readonly string[]).includes(effort)
         return {
           ...current,
           ...p,
           agentModelLabel: validModel(p.agentModelLabel) ? p.agentModelLabel : 'Gemini 3.8 Flash',
           subagentModelLabel: validModel(p.subagentModelLabel) ? p.subagentModelLabel : 'Gemini 3.8 Flash',
+          agentReasoningEffort: validEffort(p.agentReasoningEffort) ? p.agentReasoningEffort : 'medium',
+          subagentReasoningEffort: validEffort(p.subagentReasoningEffort) ? p.subagentReasoningEffort : 'medium',
           currentIndicators: { ...DEFAULT_INDICATORS, ...(p.currentIndicators ?? {}) },
         }
       },

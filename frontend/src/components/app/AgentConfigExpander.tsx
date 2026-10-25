@@ -1,8 +1,31 @@
 import { useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
-import type { ModelLabel } from '../../types'
+import type { ModelLabel, ReasoningEffort } from '../../types'
+import { REASONING_EFFORTS } from '../../types'
+
+interface SegmentedOption<T extends string> {
+  value: T
+  label: string
+}
 
 const MODEL_LABELS: ModelLabel[] = ['DeepSeek V4.1 Flash', 'Gemini 3.8 Flash', 'Kimi K3', 'GLM 5.3 FlashX']
+
+// The model labels carry the vendor name; the buttons are narrow, so drop it.
+const MODEL_OPTIONS: SegmentedOption<ModelLabel>[] = MODEL_LABELS.map((label) => ({
+  value: label,
+  label: label.replace('Gemini ', ''),
+}))
+
+const EFFORT_LABELS: Record<ReasoningEffort, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+}
+
+const EFFORT_OPTIONS: SegmentedOption<ReasoningEffort>[] = REASONING_EFFORTS.map((effort) => ({
+  value: effort,
+  label: EFFORT_LABELS[effort],
+}))
 
 export default function AgentConfigExpander() {
   const [open, setOpen] = useState(false)
@@ -11,6 +34,10 @@ export default function AgentConfigExpander() {
   const setAgentModelLabel = useAppStore((s) => s.setAgentModelLabel)
   const subagentModelLabel = useAppStore((s) => s.subagentModelLabel)
   const setSubagentModelLabel = useAppStore((s) => s.setSubagentModelLabel)
+  const agentReasoningEffort = useAppStore((s) => s.agentReasoningEffort)
+  const setAgentReasoningEffort = useAppStore((s) => s.setAgentReasoningEffort)
+  const subagentReasoningEffort = useAppStore((s) => s.subagentReasoningEffort)
+  const setSubagentReasoningEffort = useAppStore((s) => s.setSubagentReasoningEffort)
   const minResearchIterations = useAppStore((s) => s.minResearchIterations)
   const setMinResearchIterations = useAppStore((s) => s.setMinResearchIterations)
   const maxResearchIterations = useAppStore((s) => s.maxResearchIterations)
@@ -33,7 +60,7 @@ export default function AgentConfigExpander() {
           className="flex items-center gap-2 font-mono text-[0.68rem]"
           style={{ color: 'var(--text-faint)' }}
         >
-          {agentModelLabel}
+          {agentModelLabel} · {EFFORT_LABELS[agentReasoningEffort]}
           <span
             className="material-symbol transition-transform"
             style={{ fontSize: 18, transform: open ? 'rotate(180deg)' : 'none' }}
@@ -50,19 +77,36 @@ export default function AgentConfigExpander() {
           </p>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <SegmentedModel
+            <Segmented
               label="Orchestrator Model"
               value={agentModelLabel}
-              options={MODEL_LABELS}
+              options={MODEL_OPTIONS}
               disabled={isStreaming}
               onChange={setAgentModelLabel}
             />
-            <SegmentedModel
+            <Segmented
               label="Subagent Model"
               value={subagentModelLabel}
-              options={MODEL_LABELS}
+              options={MODEL_OPTIONS}
               disabled={isStreaming}
               onChange={setSubagentModelLabel}
+            />
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Segmented
+              label="Orchestrator Reasoning"
+              value={agentReasoningEffort}
+              options={EFFORT_OPTIONS}
+              disabled={isStreaming}
+              onChange={setAgentReasoningEffort}
+            />
+            <Segmented
+              label="Subagent Reasoning"
+              value={subagentReasoningEffort}
+              options={EFFORT_OPTIONS}
+              disabled={isStreaming}
+              onChange={setSubagentReasoningEffort}
             />
           </div>
 
@@ -77,7 +121,7 @@ export default function AgentConfigExpander() {
   )
 }
 
-function SegmentedModel({
+function Segmented<T extends string>({
   label,
   value,
   options,
@@ -85,10 +129,10 @@ function SegmentedModel({
   onChange,
 }: {
   label: string
-  value: ModelLabel
-  options: ModelLabel[]
+  value: T
+  options: SegmentedOption<T>[]
   disabled: boolean
-  onChange: (v: ModelLabel) => void
+  onChange: (v: T) => void
 }) {
   return (
     <div>
@@ -97,14 +141,14 @@ function SegmentedModel({
         className="flex border"
         style={{ borderColor: 'var(--border-strong)', borderRadius: 'var(--radius-sm)' }}
       >
-        {options.map((opt, i) => {
-          const active = value === opt
+        {options.map((option, i) => {
+          const active = value === option.value
           return (
             <button
-              key={opt}
+              key={option.value}
               type="button"
               disabled={disabled}
-              onClick={() => onChange(opt)}
+              onClick={() => onChange(option.value)}
               className="flex-1 px-2 py-1.5 text-[0.78rem] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50"
               style={{
                 background: active ? 'var(--text)' : 'transparent',
@@ -112,7 +156,7 @@ function SegmentedModel({
                 borderLeft: i > 0 ? '1px solid var(--border-strong)' : 'none',
               }}
             >
-              {opt.replace('Gemini ', '')}
+              {option.label}
             </button>
           )
         })}
