@@ -1,16 +1,36 @@
 import { useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
-import type { ModelLabel } from '../../types'
+import type { ModelLabel, ReasoningEffort } from '../../types'
+import { MODEL_LABELS, REASONING_EFFORTS } from '../../types'
 
-const MODEL_LABELS: ModelLabel[] = ['Gemini 3 Flash', 'Gemini 3.1 Pro']
+interface SelectOption<T extends string> {
+  value: T
+  label: string
+}
+
+const MODEL_OPTIONS: SelectOption<ModelLabel>[] = MODEL_LABELS.map((label) => ({
+  value: label,
+  label,
+}))
+
+const EFFORT_LABELS: Record<ReasoningEffort, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+}
+
+const EFFORT_OPTIONS: SelectOption<ReasoningEffort>[] = REASONING_EFFORTS.map((effort) => ({
+  value: effort,
+  label: EFFORT_LABELS[effort],
+}))
 
 export default function AgentConfigExpander() {
   const [open, setOpen] = useState(false)
 
   const agentModelLabel = useAppStore((s) => s.agentModelLabel)
   const setAgentModelLabel = useAppStore((s) => s.setAgentModelLabel)
-  const subagentModelLabel = useAppStore((s) => s.subagentModelLabel)
-  const setSubagentModelLabel = useAppStore((s) => s.setSubagentModelLabel)
+  const agentReasoningEffort = useAppStore((s) => s.agentReasoningEffort)
+  const setAgentReasoningEffort = useAppStore((s) => s.setAgentReasoningEffort)
   const minResearchIterations = useAppStore((s) => s.minResearchIterations)
   const setMinResearchIterations = useAppStore((s) => s.setMinResearchIterations)
   const maxResearchIterations = useAppStore((s) => s.maxResearchIterations)
@@ -33,7 +53,7 @@ export default function AgentConfigExpander() {
           className="flex items-center gap-2 font-mono text-[0.68rem]"
           style={{ color: 'var(--text-faint)' }}
         >
-          {agentModelLabel}
+          {agentModelLabel} · {EFFORT_LABELS[agentReasoningEffort]}
           <span
             className="material-symbol transition-transform"
             style={{ fontSize: 18, transform: open ? 'rotate(180deg)' : 'none' }}
@@ -49,20 +69,22 @@ export default function AgentConfigExpander() {
             Settings apply automatically to your next message.
           </p>
 
+          {/* The chart and quant subagents take their model and thinking level
+              from the backend's .env, so only the orchestrator is selectable. */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <SegmentedModel
-              label="Orchestrator Model"
+            <Select
+              label="Model"
               value={agentModelLabel}
-              options={MODEL_LABELS}
+              options={MODEL_OPTIONS}
               disabled={isStreaming}
               onChange={setAgentModelLabel}
             />
-            <SegmentedModel
-              label="Subagent Model"
-              value={subagentModelLabel}
-              options={MODEL_LABELS}
+            <Select
+              label="Thinking Level"
+              value={agentReasoningEffort}
+              options={EFFORT_OPTIONS}
               disabled={isStreaming}
-              onChange={setSubagentModelLabel}
+              onChange={setAgentReasoningEffort}
             />
           </div>
 
@@ -77,7 +99,7 @@ export default function AgentConfigExpander() {
   )
 }
 
-function SegmentedModel({
+function Select<T extends string>({
   label,
   value,
   options,
@@ -85,38 +107,26 @@ function SegmentedModel({
   onChange,
 }: {
   label: string
-  value: ModelLabel
-  options: ModelLabel[]
+  value: T
+  options: SelectOption<T>[]
   disabled: boolean
-  onChange: (v: ModelLabel) => void
+  onChange: (v: T) => void
 }) {
   return (
     <div>
-      <p className="tm-field-label mb-1.5">{label}</p>
-      <div
-        className="flex border"
-        style={{ borderColor: 'var(--border-strong)', borderRadius: 'var(--radius-sm)' }}
+      <label className="tm-field-label mb-1.5">{label}</label>
+      <select
+        className="tm-input"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value as T)}
       >
-        {options.map((opt, i) => {
-          const active = value === opt
-          return (
-            <button
-              key={opt}
-              type="button"
-              disabled={disabled}
-              onClick={() => onChange(opt)}
-              className="flex-1 px-2 py-1.5 text-[0.78rem] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50"
-              style={{
-                background: active ? 'var(--text)' : 'transparent',
-                color: active ? 'var(--canvas)' : 'var(--text-faint)',
-                borderLeft: i > 0 ? '1px solid var(--border-strong)' : 'none',
-              }}
-            >
-              {opt.replace('Gemini ', '')}
-            </button>
-          )
-        })}
-      </div>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </div>
   )
 }

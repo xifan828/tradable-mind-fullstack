@@ -104,13 +104,11 @@ class TechnicalIndicatorService:
             pivot_levels: dict = None,
             fibonacci_levels: dict = None,
             ) -> str:
-        chart_name = f"{self.symbol}_{self.interval}_{analysis_type}"
         chart = TechnicalCharts(
             symbol=self.symbol,
             interval=self.interval,
             df=df,
             size=size,
-            chart_name=chart_name
         )
         if analysis_type == "ema":
             _, encoded_chart = chart.plot_chart(EMA20=True, EMA50=True, EMA100=True)

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import ApiKeyForm from '../components/landing/ApiKeyForm'
+import StartButton from '../components/landing/StartButton'
 import BrowserMockup from '../components/landing/BrowserMockup'
 import FeaturesSection from '../components/landing/FeaturesSection'
 import Footer from '../components/landing/Footer'
@@ -73,15 +73,6 @@ export default function LandingPage() {
         <header className="flex items-center justify-between py-5">
           <Wordmark size={30} />
           <div className="flex items-center gap-4">
-            <a
-              href="https://aistudio.google.com/app/apikey"
-              target="_blank"
-              rel="noreferrer"
-              className="hidden text-sm font-medium transition-colors hover:text-[color:var(--brand)] md:inline"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              Get an API key
-            </a>
             <ThemeToggle />
           </div>
         </header>
@@ -125,7 +116,7 @@ export default function LandingPage() {
               </p>
 
               <div className="tm-reveal" style={{ animationDelay: '0.28s' }}>
-                <ApiKeyForm />
+                <StartButton />
               </div>
             </div>
 

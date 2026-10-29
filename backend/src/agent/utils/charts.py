@@ -5,8 +5,6 @@ from matplotlib.ticker import MaxNLocator
 from matplotlib import pyplot as plt
 from mplfinance.original_flavor import candlestick_ohlc
 import pandas as pd
-import os
-import re
 import numpy as np
 import math
 import base64
@@ -14,20 +12,12 @@ import io
 from agent.utils.constants import get_decimal_places
 
 class TechnicalCharts:
-    def __init__(self, symbol: str, interval: str, df: pd.DataFrame, size: int, chart_name: str):
+    def __init__(self, symbol: str, interval: str, df: pd.DataFrame, size: int):
         self.symbol = symbol
         self.interval = interval
         self.df = df
         self.size = size
-        self.chart_name = chart_name
-        self.chart_root_path = "data/chart"
 
-    @staticmethod
-    def _sanitize_chart_name(name: str) -> str:
-        """Remove characters invalid for file names on most OSes."""
-        sanitized = re.sub(r"[\\/:*?\"<>|]+", "_", name.strip())
-        return sanitized or "chart"
-    
     @staticmethod
     def _compute_pip_interval(y_min: float, y_max: float, decimal_places: int, max_ticks: int = 10) -> float:
         """Derive a "nice" tick interval so we draw at most `max_ticks` labels."""
@@ -323,20 +313,15 @@ class TechnicalCharts:
             for ax in all_axes:
                 ax.axvspan(start_shade, end_shade, facecolor='blue', alpha=0.2, zorder=-1)
 
-        # Save and close the figure
+        # Render to an in-memory PNG. The chart is consumed only as base64
+        # (vision input for the chart subagents) — nothing is written to disk.
         plt.tight_layout()
-
-        os.makedirs(self.chart_root_path, exist_ok=True)
-        safe_name = self._sanitize_chart_name(self.chart_name)
-        chart_path = os.path.join(self.chart_root_path, f"{safe_name}.png")
 
         buf = io.BytesIO()
         fig.savefig(buf, format='png')
         buf.seek(0)
         chart_bytes = buf.getvalue()
         encoded_chart = base64.b64encode(chart_bytes).decode('utf-8')
-        with open(chart_path, 'wb') as chart_file:
-            chart_file.write(chart_bytes)
         buf.close()
 
         plt.close(fig)

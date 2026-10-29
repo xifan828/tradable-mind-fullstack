@@ -8,7 +8,7 @@ This document contains everything needed to rebuild the Streamlit frontend as a 
 
 **Tradable Mind** is an AI-powered technical analysis platform. The frontend has two views:
 
-1. **Landing Page** — unauthenticated entry point where the user provides a Gemini API key
+1. **Landing Page** — open entry point: no account, no API key, just a CTA into the app
 2. **Main App** — authenticated trading analysis interface with a chart + AI chat
 
 **Layout:** Sidebar (left, collapsible) + main content area (right)
@@ -33,8 +33,8 @@ This document contains everything needed to rebuild the Streamlit frontend as a 
 ## 3. Routing
 
 ```
-/            → Landing page (if no API key in localStorage)
-/app         → Main analysis app (redirects to / if no API key)
+/            → Landing page
+/app         → Main analysis app (no gate: the backend holds the model key)
 ```
 
 ---
@@ -44,7 +44,7 @@ This document contains everything needed to rebuild the Streamlit frontend as a 
 ### 4.1 Layout
 
 Two-column layout (max-width 960px, centered):
-- **Left column** (55%): Hero text, API key input, CTA button, feature cards
+- **Left column** (55%): Hero text, CTA button, feature cards
 - **Right column** (45%): Browser chrome mockup frame containing an autoplay muted looping demo video
 
 ### 4.2 Left Column Content
@@ -70,17 +70,11 @@ Move beyond black-box signals with institutional-grade reasoning chains
 and visual pattern recognition.
 ```
 
-**API Key Input row** (two columns 3:1):
-- Password input: placeholder `"Enter your Gemini API Key"`
-- Primary button: `"Get Started"`
-- On submit: store API key in app state / localStorage, navigate to `/app`
-
-**Link below input:**
-```
-↗ Get your Gemini API key from Google AI Studio
-⚠ Requires a paid tier — free API keys will not work.
-```
-- Link: `https://aistudio.google.com/app/apikey`
+**CTA row** (`StartButton`):
+- Primary link to `/app`: `"Start analyzing"` with an arrow icon
+- No input: the visitor is never asked for a key. Every run is served by the
+  backend's own `OPENROUTER_API_KEY` (`backend/.env`).
+- Small note below: `"No account and no API key — ask your first question straight away."`
 
 ### 4.3 Right Column — Browser Mockup
 
@@ -156,9 +150,6 @@ Card style: white bg, rounded-2xl, border, hover lifts with blue shadow.
 
 ```ts
 interface AppState {
-  // Auth
-  geminiApiKey: string;
-
   // Chart
   chartData: OHLCRow[] | null;
   currentSymbol: string;          // default: "EUR/USD"
@@ -173,8 +164,8 @@ interface AppState {
   minResearchIterations: number;  // default: 2, range: 1–6
   maxResearchIterations: number;  // default: 6, range: 1–6
   maxConcurrentTasks: number;     // default: 4, range: 1–4
-  agentModelLabel: ModelLabel;    // default: "Gemini 3 Flash"
-  subagentModelLabel: ModelLabel; // default: "Gemini 3 Flash"
+  agentModelLabel: ModelLabel;    // default: "Google: Gemini 3.8 Flash"
+  agentReasoningEffort: ReasoningEffort;    // default: "medium"
 
   // Chat
   messages: ChatMessage[];
@@ -191,7 +182,8 @@ interface AppState {
 }
 
 type AssetType = "forex" | "commodity" | "crypto" | "stock";
-type ModelLabel = "Gemini 3 Flash" | "Gemini 3.1 Pro";
+type ModelLabel = "Google: Gemini 3.8 Flash" | "Google: Gemini 4 Argon" | "MoonshotAI: Kimi K3.1 Pro" | "OpenAI: GPT-6.1 Terra";
+type ReasoningEffort = "low" | "medium" | "high";
 ```
 
 ---
@@ -432,17 +424,29 @@ font:     "#e8e8f0"
 
 Collapsible section (default open) above the chat history. Caption: "Settings are applied automatically to the next message."
 
-**Model selectors** (two columns):
-- **Orchestrator Model** — radio group: `"Gemini 3 Flash"` | `"Gemini 3.1 Pro"`
-- **Subagent Model** — radio group: `"Gemini 3 Flash"` | `"Gemini 3.1 Pro"`
+**Model & Thinking Level** (two columns, each a dropdown):
+- **Model** — select: `"Google: Gemini 3.8 Flash"` | `"Google: Gemini 4 Argon"` | `"MoonshotAI: Kimi K3.1 Pro"` | `"OpenAI: GPT-6.1 Terra"`, default `"Google: Gemini 3.8 Flash"`
+
+The chart and quant subagents are not selectable: their model and thinking level
+come from the backend's `.env` (`CHART_AGENT_*` / `QUANT_AGENT_*`).
 
 Model ID mapping:
 ```ts
 const MODEL_MAP = {
-  "Gemini 3 Flash": "models/gemini-3-flash-preview",
-  "Gemini 3.1 Pro": "models/gemini-3.1-pro-preview",
+  "Google: Gemini 3.8 Flash": "google/gemini-3.8-flash",
+  "Google: Gemini 4 Argon": "google/gemini-4-argon",
+  "MoonshotAI: Kimi K3.1 Pro": "moonshotai/kimi-k3.1-pro",
+  "OpenAI: GPT-6.1 Terra": "openai/gpt-6.1-terra",
 };
 ```
+
+**Thinking level** (the two columns above hold Model and Thinking Level):
+- **Thinking Level** — select: `"Low"` | `"Medium"` | `"High"`, default `"Medium"`
+
+Sent as `reasoning_effort` in the run context; the backend forwards it to
+OpenRouter as `reasoning: { effort }` (see `REASONING_EFFORTS` — it falls back to
+`"medium"` for unknown values). The collapsed header shows the orchestrator model
+and effort (`Google: Gemini 3.8 Flash · Medium`).
 
 **Numeric selectors** (three columns):
 - **Min Iterations** — select: 1–6, default 2
@@ -475,7 +479,7 @@ Dark theme: dark navy bg, dark green border accent.
 <input placeholder="Ask about the chart or request analysis..." />
 ```
 
-Disabled when: API key is missing OR `isStreaming === true`.
+Disabled when: `isStreaming === true`.
 
 On submit:
 1. Set `isStreaming = true`
@@ -578,10 +582,8 @@ The runtime **context** passed with each run mirrors the backend's `Orchestrator
 
 ```ts
 interface AgentRunContext {
-  api_key: string;                  // user's Gemini API key
   asset_type: AssetType;            // "forex" | "commodity" | "crypto" | "stock"
   model_name: string;               // MODEL_MAP[agentModelLabel]
-  subagent_model_name: string;      // MODEL_MAP[subagentModelLabel]
   min_research_iterations: number;  // 1–6, default 2
   max_research_iterations: number;  // 1–6, default 6
   max_concurrent_tasks: number;     // 1–4, default 4
@@ -596,10 +598,8 @@ const streamResponse = client.runs.stream(threadId, "agent", {
     messages: [{ role: "human", content: query }],
   },
   context: {
-    api_key: geminiApiKey,
     asset_type: currentAssetType,
     model_name: MODEL_MAP[agentModelLabel],
-    subagent_model_name: MODEL_MAP[subagentModelLabel],
     min_research_iterations: minResearchIterations,
     max_research_iterations: maxResearchIterations,
     max_concurrent_tasks: maxConcurrentTasks,
@@ -794,7 +794,7 @@ App
 ├── LandingPage
 │   ├── HeroBadge
 │   ├── HeroTitle
-│   ├── ApiKeyForm
+│   ├── StartButton
 │   ├── BrowserMockup (with demo video)
 │   ├── FeaturesSection
 │   │   └── FeatureCard × 3
@@ -839,7 +839,7 @@ App
 
 ## 15. Key Behavioral Rules
 
-1. **API key gate**: Show landing page if no key in state. Store key in localStorage. On "Get Started", navigate to `/app`.
+1. **No key gate**: the landing CTA links straight to `/app`. The model key lives only in `backend/.env` (`OPENROUTER_API_KEY`); the browser never sees or sends one.
 
 2. **Chart first**: The chat section only appears after the chart is loaded (`chartLoaded === true`).
 
@@ -855,7 +855,7 @@ App
 
 8. **X-axis as categorical**: Plotly x-axis type must be `"category"` to avoid visual gaps on weekends/holidays.
 
-9. **Free tier API key error**: If backend returns error containing "free_tier", show a specific user-friendly error message pointing to the rate limits page.
+9. **Rate-limit error**: If backend returns error containing "free_tier", show a provider-neutral message ("rejected on rate limits — try again in a moment"); there is no user key to fix.
 
 10. **Theme persistence**: Store theme preference in localStorage.
 
@@ -868,7 +868,7 @@ App
 | No chart loaded | Centered info block: "To begin: Enter an asset symbol, Choose your indicators, Press Load Chart" |
 | Chart loading | Spinner/skeleton with "Loading data for {SYMBOL}..." |
 | Chart load error | Error alert with message |
-| No API key in chat | Warning: "Enter your Gemini API key in the sidebar to enable AI analysis chat." |
+| No API key in chat | (n/a — no key is ever required from the client) |
 | Agent analyzing | Info banner: "Agent is analyzing..." with a brain/psychology icon |
 | Stream error | Error message in chat |
 

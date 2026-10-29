@@ -41,7 +41,6 @@ interface ChatSectionProps {
 export default function ChatSection({ onClearConversation }: ChatSectionProps) {
   const messages = useAppStore((s) => s.messages)
   const isStreaming = useAppStore((s) => s.isStreaming)
-  const geminiApiKey = useAppStore((s) => s.geminiApiKey)
   const chartLoaded = useAppStore((s) => s.chartLoaded)
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -104,18 +103,6 @@ export default function ChatSection({ onClearConversation }: ChatSectionProps) {
               candlestick_chart
             </span>
             No chart loaded yet — set a market in the toolbar for chart-aware analysis.
-          </div>
-        )}
-
-        {!geminiApiKey && (
-          <div
-            className="mb-4 flex items-center gap-2 border-l-2 py-1.5 pl-3 text-sm"
-            style={{ borderColor: 'var(--warn)', color: 'var(--warn)' }}
-          >
-            <span className="material-symbol" style={{ fontSize: 18 }}>
-              key
-            </span>
-            Enter your Gemini API key to enable AI analysis chat.
           </div>
         )}
 
@@ -183,9 +170,8 @@ function ThinkingIndicator() {
 function ChatInput() {
   const [value, setValue] = useState('')
 
-  const geminiApiKey = useAppStore((s) => s.geminiApiKey)
   const isStreaming = useAppStore((s) => s.isStreaming)
-  const disabled = !geminiApiKey || isStreaming
+  const disabled = isStreaming
 
   // Suggested prompts (WelcomeCard) fill the composer via this event.
   useEffect(() => {
@@ -241,13 +227,12 @@ function ChatInput() {
 async function sendMessage(query: string) {
   const store = useAppStore.getState()
   const {
-    geminiApiKey,
     currentAssetType,
     currentSymbol,
     currentInterval,
     currentIndicators,
     agentModelLabel,
-    subagentModelLabel,
+    agentReasoningEffort,
     minResearchIterations,
     maxResearchIterations,
     maxConcurrentTasks,
@@ -276,13 +261,12 @@ async function sendMessage(query: string) {
     const streamResponse = langGraphClient.runs.stream(threadId, 'agent', {
       input: { messages: [{ role: 'human', content: query }] },
       context: {
-        api_key: geminiApiKey,
         asset_type: currentAssetType,
         symbol: currentSymbol,
         interval: currentInterval,
         indicators: formatActiveIndicators(currentIndicators),
         model_name: MODEL_MAP[agentModelLabel],
-        subagent_model_name: MODEL_MAP[subagentModelLabel],
+        reasoning_effort: agentReasoningEffort,
         min_research_iterations: minResearchIterations,
         max_research_iterations: maxResearchIterations,
         max_concurrent_tasks: maxConcurrentTasks,
@@ -302,7 +286,7 @@ async function sendMessage(query: string) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     const friendly = message.includes('free_tier')
-      ? 'Your Gemini API key appears to be a free-tier key. Please use a paid-tier key — see the rate limits page for details.'
+      ? 'The model provider rejected this run on rate limits (free tier). Please try again in a moment.'
       : message
     useAppStore.getState().addMessage({
       id: nextId('error'),
