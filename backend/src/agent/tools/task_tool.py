@@ -1,23 +1,18 @@
-import asyncio
-import random
-import shutil
 from typing import Literal
+from uuid import uuid4
 
 from langchain.tools import ToolRuntime, tool
 from langchain_core.messages import HumanMessage
 
 from agent.agents.chart_agent import chart_agent
 from agent.agents.quant_agent import quant_agent
-from agent.config.settings import BASE_DIR
 from agent.prompts.technical_analysis import TASK_DESCRIPTION
 from agent.states_and_contexts.technical_analysis import (
     ChartAgentContext,
     QuantAgentContext,
 )
+from agent.tools.quant_tools import aclose_run
 from agent.utils.llm import parse_langchain_ai_message
-
-# Base directory for session temp directories
-QUANT_DATA_BASE_DIR = BASE_DIR / "data" / "time_series"
 
 
 @tool(description=TASK_DESCRIPTION, parse_docstring=True)
@@ -67,21 +62,20 @@ async def task(
             return f"Error: Failed to complete chart analysis for '{chart_context.asset}'. {error_msg}"
 
     elif task_type == "quantitative":
-        # Create session-specific temp directory with random 6-digit number
-        session_id = f"{random.randint(100000, 999999)}"
-        session_data_dir = QUANT_DATA_BASE_DIR / session_id
-        await asyncio.to_thread(session_data_dir.mkdir, parents=True, exist_ok=True)
-
+        # One code execution session per run, identified by this id: it holds the
+        # agent's variables across its tool calls and is closed in the `finally`
+        # below, on the success and the failure path alike.
+        run_id = uuid4().hex
+        # The quant agent's model comes from backend/.env, not from the
+        # orchestrator's context, so only the run wiring is passed here.
         quant_context = QuantAgentContext(
-            model_name=context.subagent_model_name,
-            reasoning_effort=context.subagent_reasoning_effort,
-            session_data_dir=str(session_data_dir),
             asset_type=context.asset_type,
+            run_id=run_id,
         )
 
         try:
             result = await quant_agent.ainvoke(
-                {"messages": [HumanMessage(content=task_description)], "downloaded_files": []},
+                {"messages": [HumanMessage(content=task_description)]},
                 context=quant_context
             )
 
@@ -102,9 +96,12 @@ async def task(
                 "The task did not finish; you can retry it or continue without its result."
             )
         finally:
-            # Clean up session temp directory
-            if await asyncio.to_thread(session_data_dir.exists):
-                await asyncio.to_thread(shutil.rmtree, session_data_dir, True)
+            # The session is a real process holding the run's DataFrames. Close it
+            # here rather than in an after_agent hook: hooks inside the agent do
+            # not run when the run raises or is cancelled, which is exactly when a
+            # leaked process would sit around holding memory. The async close
+            # keeps the reap wait off the event loop.
+            await aclose_run(run_id)
 
     else:
         return f"Error: Unknown task_type '{task_type}'. Must be 'chart' or 'quantitative'."

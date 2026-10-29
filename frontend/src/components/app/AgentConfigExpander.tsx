@@ -1,19 +1,16 @@
 import { useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import type { ModelLabel, ReasoningEffort } from '../../types'
-import { REASONING_EFFORTS } from '../../types'
+import { MODEL_LABELS, REASONING_EFFORTS } from '../../types'
 
-interface SegmentedOption<T extends string> {
+interface SelectOption<T extends string> {
   value: T
   label: string
 }
 
-const MODEL_LABELS: ModelLabel[] = ['DeepSeek V4.1 Flash', 'Gemini 3.8 Flash', 'Kimi K3', 'GLM 5.3 FlashX']
-
-// The model labels carry the vendor name; the buttons are narrow, so drop it.
-const MODEL_OPTIONS: SegmentedOption<ModelLabel>[] = MODEL_LABELS.map((label) => ({
+const MODEL_OPTIONS: SelectOption<ModelLabel>[] = MODEL_LABELS.map((label) => ({
   value: label,
-  label: label.replace('Gemini ', ''),
+  label,
 }))
 
 const EFFORT_LABELS: Record<ReasoningEffort, string> = {
@@ -22,7 +19,7 @@ const EFFORT_LABELS: Record<ReasoningEffort, string> = {
   high: 'High',
 }
 
-const EFFORT_OPTIONS: SegmentedOption<ReasoningEffort>[] = REASONING_EFFORTS.map((effort) => ({
+const EFFORT_OPTIONS: SelectOption<ReasoningEffort>[] = REASONING_EFFORTS.map((effort) => ({
   value: effort,
   label: EFFORT_LABELS[effort],
 }))
@@ -32,12 +29,8 @@ export default function AgentConfigExpander() {
 
   const agentModelLabel = useAppStore((s) => s.agentModelLabel)
   const setAgentModelLabel = useAppStore((s) => s.setAgentModelLabel)
-  const subagentModelLabel = useAppStore((s) => s.subagentModelLabel)
-  const setSubagentModelLabel = useAppStore((s) => s.setSubagentModelLabel)
   const agentReasoningEffort = useAppStore((s) => s.agentReasoningEffort)
   const setAgentReasoningEffort = useAppStore((s) => s.setAgentReasoningEffort)
-  const subagentReasoningEffort = useAppStore((s) => s.subagentReasoningEffort)
-  const setSubagentReasoningEffort = useAppStore((s) => s.setSubagentReasoningEffort)
   const minResearchIterations = useAppStore((s) => s.minResearchIterations)
   const setMinResearchIterations = useAppStore((s) => s.setMinResearchIterations)
   const maxResearchIterations = useAppStore((s) => s.maxResearchIterations)
@@ -76,37 +69,22 @@ export default function AgentConfigExpander() {
             Settings apply automatically to your next message.
           </p>
 
+          {/* The chart and quant subagents take their model and thinking level
+              from the backend's .env, so only the orchestrator is selectable. */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Segmented
-              label="Orchestrator Model"
+            <Select
+              label="Model"
               value={agentModelLabel}
               options={MODEL_OPTIONS}
               disabled={isStreaming}
               onChange={setAgentModelLabel}
             />
-            <Segmented
-              label="Subagent Model"
-              value={subagentModelLabel}
-              options={MODEL_OPTIONS}
-              disabled={isStreaming}
-              onChange={setSubagentModelLabel}
-            />
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Segmented
-              label="Orchestrator Reasoning"
+            <Select
+              label="Thinking Level"
               value={agentReasoningEffort}
               options={EFFORT_OPTIONS}
               disabled={isStreaming}
               onChange={setAgentReasoningEffort}
-            />
-            <Segmented
-              label="Subagent Reasoning"
-              value={subagentReasoningEffort}
-              options={EFFORT_OPTIONS}
-              disabled={isStreaming}
-              onChange={setSubagentReasoningEffort}
             />
           </div>
 
@@ -121,7 +99,7 @@ export default function AgentConfigExpander() {
   )
 }
 
-function Segmented<T extends string>({
+function Select<T extends string>({
   label,
   value,
   options,
@@ -130,37 +108,25 @@ function Segmented<T extends string>({
 }: {
   label: string
   value: T
-  options: SegmentedOption<T>[]
+  options: SelectOption<T>[]
   disabled: boolean
   onChange: (v: T) => void
 }) {
   return (
     <div>
-      <p className="tm-field-label mb-1.5">{label}</p>
-      <div
-        className="flex border"
-        style={{ borderColor: 'var(--border-strong)', borderRadius: 'var(--radius-sm)' }}
+      <label className="tm-field-label mb-1.5">{label}</label>
+      <select
+        className="tm-input"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value as T)}
       >
-        {options.map((option, i) => {
-          const active = value === option.value
-          return (
-            <button
-              key={option.value}
-              type="button"
-              disabled={disabled}
-              onClick={() => onChange(option.value)}
-              className="flex-1 px-2 py-1.5 text-[0.78rem] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50"
-              style={{
-                background: active ? 'var(--text)' : 'transparent',
-                color: active ? 'var(--canvas)' : 'var(--text-faint)',
-                borderLeft: i > 0 ? '1px solid var(--border-strong)' : 'none',
-              }}
-            >
-              {option.label}
-            </button>
-          )
-        })}
-      </div>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </div>
   )
 }

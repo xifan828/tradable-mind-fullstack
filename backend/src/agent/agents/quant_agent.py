@@ -1,52 +1,70 @@
+from pathlib import Path
+
 from langchain.agents import create_agent
-from langchain.agents.middleware import dynamic_prompt, ModelRequest, ModelResponse, wrap_model_call
-from typing import Callable
+from langchain.agents.middleware import dynamic_prompt, ModelRequest
+from langchain_core.language_models.chat_models import BaseChatModel
+from agent.config.settings import (
+    get_quant_agent_model,
+    get_quant_agent_thinking_level,
+)
 from agent.utils.llm import build_openrouter_model
 
 from agent.states_and_contexts.technical_analysis import QuantAgentState, QuantAgentContext
-from agent.prompts.technical_analysis import QUANT_AGENT_SYSTEM_PROMPT
-from agent.tools.quant_tools import download_market_data, write_code
+from agent.tools.quant_tools import aclose_run, code_execution
+
+QUANT_AGENT_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "quant_agent.md"
+QUANT_AGENT_SYSTEM_PROMPT = QUANT_AGENT_PROMPT_PATH.read_text(encoding="utf-8")
 
 # ============================================================
 # Quantitative Analysis Agent
 # ============================================================
-@wrap_model_call
-async def dynamic_model_from_context(
-    request: ModelRequest,
-    handler: Callable[[ModelRequest], ModelResponse]
-) -> ModelResponse:
-    model_name = request.runtime.context.model_name
-
-    # The OpenRouter key always comes from OPENROUTER_API_KEY (backend/.env);
-    # the caller never supplies one. The effort level comes from the same
-    # context, so each agent thinks as hard as its own context asks.
-    model = build_openrouter_model(
-        model_name,
-        reasoning_effort=getattr(request.runtime.context, "reasoning_effort", None),
-    )
-
-    return await handler(request.override(model=model))
+# The model is fixed by backend/.env (QUANT_AGENT_MODEL /
+# QUANT_AGENT_THINKING_LEVEL), not chosen per run: the quant agent is tuned
+# together with the prompt and the REPL tool it drives, so the caller's context
+# does not get to swap it out.
+quant_agent_model = build_openrouter_model(
+    get_quant_agent_model(),
+    reasoning_effort=get_quant_agent_thinking_level(),
+)
 
 @dynamic_prompt
 def quant_agent_system_prompt_from_context(request: ModelRequest) -> str:
     max_iterations = getattr(request.runtime.context, "max_iterations", 10)
-    return QUANT_AGENT_SYSTEM_PROMPT.format(
-        max_iterations=max_iterations
+    # Plain substitution, not str.format: the markdown prompt is free to contain
+    # braces (Python dicts, f-strings in examples) without raising KeyError.
+    return QUANT_AGENT_SYSTEM_PROMPT.replace("{max_iterations}", str(max_iterations))
+
+def build_quant_agent(model: BaseChatModel | None = None):
+    """Assemble the quant agent graph.
+
+    Args:
+        model: Chat model to run the agent on; defaults to `quant_agent_model`,
+            which is built from backend/.env. Callers only pass one to swap in a
+            stub, as the tests do.
+    """
+    return create_agent(
+        model=model or quant_agent_model,
+        tools=[code_execution],
+        middleware=[quant_agent_system_prompt_from_context],
+        state_schema=QuantAgentState,
+        context_schema=QuantAgentContext,
     )
 
-quant_agent = create_agent(
-    model=None,
-    tools=[download_market_data, write_code],
-    middleware=[dynamic_model_from_context, quant_agent_system_prompt_from_context],
-    state_schema=QuantAgentState,
-    context_schema=QuantAgentContext,
-)
+
+quant_agent = build_quant_agent()
 
 if __name__ == "__main__":
     import asyncio
-    from langchain_core.messages import HumanMessage
-    import os
+    import sys
+    import textwrap
+    import time
+    from uuid import uuid4
+
     from dotenv import load_dotenv
+    from langchain_core.messages import BaseMessage, HumanMessage
+
+    from agent.utils.twelve_data import AssetType
+
     load_dotenv()
 
     # 10 example prompts to test the agent's capabilities
@@ -82,90 +100,97 @@ if __name__ == "__main__":
         "Download XAU/USD 1day data and calculate the mean, std, and percentiles of closing prices. Identify potential support (25th percentile) and resistance (75th percentile) levels.",
     ]
 
-    async def run_single_agent(agent_id: int, prompt: str, context: QuantAgentContext) -> dict:
-        """Run a single agent and return results with timing."""
-        import time
-        start = time.perf_counter()
-        print(f"[Agent {agent_id}] Starting: {prompt[:60]}...")
+    def print_message(message: BaseMessage, elapsed: float) -> None:
+        """Print one tool call or tool result, stamped with the time it arrived."""
+        if getattr(message, "tool_calls", None):
+            for call in message.tool_calls:
+                print(f"\n[{elapsed:5.1f}s] >>> {call['name']}()")
+                print(textwrap.indent(call["args"].get("code", ""), "    "))
+            return
+        if type(message).__name__ != "ToolMessage":
+            # The prompt and the model's own prose are printed by the run itself.
+            return
+        content = str(message.content)
+        shown = content if len(content) <= 2500 else content[:2500] + "\n... (truncated for display)"
+        print(f"\n[{elapsed:5.1f}s] <<< {getattr(message, 'name', None) or 'tool'} result ({len(content)} chars)")
+        print(textwrap.indent(shown, "    "))
 
-        result = await quant_agent.ainvoke(
-            {"messages": [HumanMessage(content=prompt)], "downloaded_files": []},
-            context=context
+    async def run(
+        prompt: str,
+        asset_type: AssetType = "forex",
+    ) -> float:
+        """Run one quant agent, printing every tool call and result as it happens.
+
+        Args:
+            prompt: The analysis to ask for.
+            asset_type: Asset class of the symbol in the prompt ("forex",
+                "commodity", "crypto", "stock").
+
+        Returns:
+            Wall-clock seconds the run took.
+        """
+        context = QuantAgentContext(
+            asset_type=asset_type,
+            run_id=f"manual-{uuid4().hex[:8]}",
         )
 
-        elapsed = time.perf_counter() - start
-        print(f"[Agent {agent_id}] Completed in {elapsed:.2f}s")
-        return {"agent_id": agent_id, "result": result, "elapsed": elapsed}
+        print("=" * 80)
+        print(f"MODEL   {get_quant_agent_model()}    run_id {context.run_id}")
+        print(f"PROMPT  {prompt}")
+        print("=" * 80)
 
+        started = time.perf_counter()
+        printed = 0
+        messages: list[BaseMessage] = []
+        try:
+            # stream_mode="values" hands over the whole state after every node, so
+            # each tool call and each tool result is printed the moment it exists
+            # rather than at the end of the run.
+            async for state in quant_agent.astream(
+                {"messages": [HumanMessage(content=prompt)]},
+                context=context,
+                stream_mode="values",
+            ):
+                messages = state["messages"]
+                for message in messages[printed:]:
+                    print_message(message, time.perf_counter() - started)
+                printed = len(messages)
+        finally:
+            # Free the run's code execution process as soon as it is finished.
+            await aclose_run(context.run_id)
 
-    # async def main():
-    #     import time
-    #     import random
-    #     import shutil
-    #     from agent.config.settings import BASE_DIR
+        elapsed = time.perf_counter() - started
+        calls = sum(len(m.tool_calls) for m in messages if getattr(m, "tool_calls", None))
 
-    #     # Create a test session directory
-    #     session_id = f"{random.randint(100000, 999999)}"
-    #     session_data_dir = BASE_DIR / "data" / "time_series" / session_id
-    #     session_data_dir.mkdir(parents=True, exist_ok=True)
+        print("\n" + "=" * 80)
+        print(f"FINAL ANSWER    {calls} tool call(s)    {elapsed:.2f}s")
+        print("=" * 80)
+        answer = messages[-1].text.strip() if messages else ""
+        if not answer:
+            answer = f"(the run ended on a tool call: {messages[-1] if messages else 'no messages'})"
+        print(answer[:4000])
+        print("=" * 80)
+        print(f"[one agent run took {elapsed:.2f}s]")
+        return elapsed
 
-    #     context = QuantAgentContext(
-    #         api_key=os.getenv("GEMINI_API_KEY"),
-    #         model_name="models/gemini-3-flash-preview",
-    #         session_data_dir=str(session_data_dir),
-    #     )
+    async def main() -> None:
+        """Run one agent; use argv to try another prompt or asset type.
 
-    #     # Run two agents in parallel to test ProcessPoolExecutor
-    #     print("=" * 80)
-    #     print("Running TWO agents in PARALLEL to test non-blocking execution")
-    #     print("=" * 80)
+        Usage::
 
-    #     total_start = time.perf_counter()
+            python -m agent.agents.quant_agent
+            python -m agent.agents.quant_agent "Download XAU/USD 1day data and summarise it." commodity
+        """
+        # prompt = sys.argv[1] if len(sys.argv) > 1 else EXAMPLE_PROMPTS[0]
+        # prompt = "Perform quantitative statistical analysis on EUR/USD on the 4h and daily timeframes. Calculate current ATR(14) values on 4h and 1d, assess historical distribution of daily ranges, evaluate kinematic exhaustion given today's range of 0.00428 (63% ADR), and identify high liquidity density price nodes / price distribution over the last 80 4h candles. Note: Do not use volume as EUR/USD is forex."
+        prompt = "Perform a quantitative analysis of EUR/USD on the 4h and daily timeframes. Calculate 14-period ATR on 4h and daily charts, assess daily range utilization (current range vs 20-day ADR), statistical probability of expansion vs mean reversion from current levels around 1.1151, and key volatility bands. Note: Forex has no volume, rely on OHLC price-derived metrics."
+        asset_type: AssetType = sys.argv[2] if len(sys.argv) > 2 else "forex"  # type: ignore[assignment]
+        await run(prompt, asset_type)
 
-    #     # Launch both agents concurrently
-    #     results = await asyncio.gather(
-    #         # run_single_agent(0, EXAMPLE_PROMPTS[0], context),
-    #         # run_single_agent(1, EXAMPLE_PROMPTS[1], context),
-    #         # run_single_agent(2, EXAMPLE_PROMPTS[2], context),
-    #         # run_single_agent(3, EXAMPLE_PROMPTS[3], context),
-    #         # run_single_agent(4, EXAMPLE_PROMPTS[4], context),
-    #         run_single_agent(5, "What is the most successfull trading strategy in the last 30 days for USD/JPY.", context),
-            
-    #         run_single_agent(5, "What is the most successfull trading strategy in the last 30 days for XAU/USD.", context),
+        # Two runs at once get two independent code execution processes:
+        # await asyncio.gather(
+        #     run("Download EUR/USD 4h data and check the EMA stack.", "forex"),
+        #     run("Download XAU/USD 4h data and check the EMA stack.", "commodity"),
+        # )
 
-            
-    #      #   run_single_agent(5, "What is the most successfull trading strategy in the last 30 days for BTC/USD.", context),
-
-    #     )
-
-    #     total_elapsed = time.perf_counter() - total_start
-
-    #     print("\n" + "=" * 80)
-    #     print("RESULTS")
-    #     print("=" * 80)
-
-    #     for r in results:
-    #         print(f"\n[Agent {r['agent_id']}] (completed in {r['elapsed']:.2f}s)")
-    #         print("-" * 40)
-    #         # Print last message from the agent
-    #         messages = r["result"].get("messages", [])
-    #         if messages:
-    #             last_msg = messages[-1]
-    #             content = getattr(last_msg, "content", str(last_msg))
-    #             # Truncate long output
-    #             if len(content) > 1000:
-    #                 content = content[:1000] + "\n... (truncated)"
-    #             print(content)
-
-    #     print("\n" + "=" * 80)
-    #     print(f"Total wall-clock time: {total_elapsed:.2f}s")
-    #     print(f"Sum of individual times: {sum(r['elapsed'] for r in results):.2f}s")
-    #     print(f"Parallelism benefit: {sum(r['elapsed'] for r in results) - total_elapsed:.2f}s saved")
-    #     print("=" * 80)
-
-    #     # Clean up test session directory
-    #     if session_data_dir.exists():
-    #         shutil.rmtree(session_data_dir, ignore_errors=True)
-    #         print(f"Cleaned up session directory: {session_data_dir}")
-
-    # asyncio.run(main())
+    asyncio.run(main())

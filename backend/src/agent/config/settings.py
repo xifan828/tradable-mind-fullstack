@@ -19,6 +19,22 @@ TWELVE_DATA_API_KEY = os.getenv("TWELVE_DATA_API_KEY")
 
 # Add your configuration here
 
+# Quant agent -----------------------------------------------------------------
+# The quant agent runs on an OpenRouter slug and writes its own Python in a
+# persistent REPL. Override with QUANT_AGENT_MODEL in backend/.env.
+DEFAULT_QUANT_AGENT_MODEL = "deepseek/deepseek-v4.1-flash"
+
+
+def get_quant_agent_model() -> str:
+    """Return the quant agent's OpenRouter model slug (QUANT_AGENT_MODEL)."""
+    return os.getenv("QUANT_AGENT_MODEL") or DEFAULT_QUANT_AGENT_MODEL
+
+
+def get_quant_agent_thinking_level() -> str | None:
+    """Return the quant agent's reasoning effort (QUANT_AGENT_THINKING_LEVEL)."""
+    return os.getenv("QUANT_AGENT_THINKING_LEVEL") or None
+
+
 # Chart agent -----------------------------------------------------------------
 # The chart agent is a ChatGoogleGenerativeAI model bound to Gemini's native
 # `code_execution` tool, so its model is a Gemini model name, not an OpenRouter

@@ -164,10 +164,8 @@ interface AppState {
   minResearchIterations: number;  // default: 2, range: 1–6
   maxResearchIterations: number;  // default: 6, range: 1–6
   maxConcurrentTasks: number;     // default: 4, range: 1–4
-  agentModelLabel: ModelLabel;    // default: "Gemini 3.8 Flash"
-  subagentModelLabel: ModelLabel; // default: "Gemini 3.8 Flash"
+  agentModelLabel: ModelLabel;    // default: "Google: Gemini 3.8 Flash"
   agentReasoningEffort: ReasoningEffort;    // default: "medium"
-  subagentReasoningEffort: ReasoningEffort; // default: "medium"
 
   // Chat
   messages: ChatMessage[];
@@ -184,7 +182,7 @@ interface AppState {
 }
 
 type AssetType = "forex" | "commodity" | "crypto" | "stock";
-type ModelLabel = "DeepSeek V4.1 Flash" | "Gemini 3.8 Flash" | "Kimi K3" | "GLM 5.3 FlashX";
+type ModelLabel = "Google: Gemini 3.8 Flash" | "Google: Gemini 4 Argon" | "MoonshotAI: Kimi K3.1 Pro" | "OpenAI: GPT-6.1 Terra";
 type ReasoningEffort = "low" | "medium" | "high";
 ```
 
@@ -426,29 +424,29 @@ font:     "#e8e8f0"
 
 Collapsible section (default open) above the chat history. Caption: "Settings are applied automatically to the next message."
 
-**Model selectors** (two columns):
-- **Orchestrator Model** — radio group: `"DeepSeek V4.1 Flash"` | `"Gemini 3.8 Flash"` | `"Kimi K3"` | `"GLM 5.3 FlashX"`
-- **Subagent Model** — radio group: same four options
+**Model & Thinking Level** (two columns, each a dropdown):
+- **Model** — select: `"Google: Gemini 3.8 Flash"` | `"Google: Gemini 4 Argon"` | `"MoonshotAI: Kimi K3.1 Pro"` | `"OpenAI: GPT-6.1 Terra"`, default `"Google: Gemini 3.8 Flash"`
+
+The chart and quant subagents are not selectable: their model and thinking level
+come from the backend's `.env` (`CHART_AGENT_*` / `QUANT_AGENT_*`).
 
 Model ID mapping:
 ```ts
 const MODEL_MAP = {
-  "DeepSeek V4.1 Flash": "deepseek/deepseek-v4.1-flash",
-  "Gemini 3.8 Flash": "google/gemini-3.8-flash",
-  "Kimi K3": "moonshotai/kimi-k3",
-  "GLM 5.3 FlashX": "z-ai/glm-5.3-flashx",
+  "Google: Gemini 3.8 Flash": "google/gemini-3.8-flash",
+  "Google: Gemini 4 Argon": "google/gemini-4-argon",
+  "MoonshotAI: Kimi K3.1 Pro": "moonshotai/kimi-k3.1-pro",
+  "OpenAI: GPT-6.1 Terra": "openai/gpt-6.1-terra",
 };
 ```
 
-**Reasoning selectors** (two columns):
-- **Orchestrator Reasoning** — radio group: `"Low"` | `"Medium"` | `"High"`, default `"Medium"`
-- **Subagent Reasoning** — radio group: same three, default `"Medium"`
+**Thinking level** (the two columns above hold Model and Thinking Level):
+- **Thinking Level** — select: `"Low"` | `"Medium"` | `"High"`, default `"Medium"`
 
-Sent as `reasoning_effort` / `subagent_reasoning_effort` in the run context; the
-backend forwards them to OpenRouter as `reasoning: { effort }` (see
-`REASONING_EFFORTS` — it falls back to `"medium"` for unknown values). The
-collapsed header shows the orchestrator model and effort
-(`Gemini 3.8 Flash · Medium`).
+Sent as `reasoning_effort` in the run context; the backend forwards it to
+OpenRouter as `reasoning: { effort }` (see `REASONING_EFFORTS` — it falls back to
+`"medium"` for unknown values). The collapsed header shows the orchestrator model
+and effort (`Google: Gemini 3.8 Flash · Medium`).
 
 **Numeric selectors** (three columns):
 - **Min Iterations** — select: 1–6, default 2
@@ -586,7 +584,6 @@ The runtime **context** passed with each run mirrors the backend's `Orchestrator
 interface AgentRunContext {
   asset_type: AssetType;            // "forex" | "commodity" | "crypto" | "stock"
   model_name: string;               // MODEL_MAP[agentModelLabel]
-  subagent_model_name: string;      // MODEL_MAP[subagentModelLabel]
   min_research_iterations: number;  // 1–6, default 2
   max_research_iterations: number;  // 1–6, default 6
   max_concurrent_tasks: number;     // 1–4, default 4
@@ -603,7 +600,6 @@ const streamResponse = client.runs.stream(threadId, "agent", {
   context: {
     asset_type: currentAssetType,
     model_name: MODEL_MAP[agentModelLabel],
-    subagent_model_name: MODEL_MAP[subagentModelLabel],
     min_research_iterations: minResearchIterations,
     max_research_iterations: maxResearchIterations,
     max_concurrent_tasks: maxConcurrentTasks,

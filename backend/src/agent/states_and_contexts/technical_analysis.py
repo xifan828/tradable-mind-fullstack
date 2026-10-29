@@ -1,11 +1,10 @@
 from langchain.agents import AgentState
-from typing_extensions import Annotated, TypedDict
-from typing import Literal, NotRequired
-import operator
+from typing_extensions import Annotated
+from typing import Literal
 from dataclasses import dataclass
 from pydantic import BaseModel
 from pydantic.json_schema import SkipJsonSchema
-from typing import Literal, Optional
+from typing import Optional
 
 from agent.utils.llm import DEFAULT_REASONING_EFFORT, ReasoningEffort
 from agent.utils.twelve_data import AssetType
@@ -18,19 +17,25 @@ def replace_todos(current: list | None, new: list) -> list:
 # Quant Agent
 # ========================================
 class QuantAgentState(AgentState):
-    """State for the quantitative analysis agent."""
-    # Use Annotated with operator.add to allow concurrent updates from parallel tool calls
-    downloaded_files: Annotated[list[str], operator.add]
+    """State for the quantitative analysis agent.
+
+    Analysis variables live inside the code execution session, not here: they
+    are held by a separate process for the duration of the run, which keeps them
+    out of the graph state (and out of any checkpoint).
+    """
+
 
 @dataclass
 class QuantAgentContext:
     """Runtime context for the quant analysis agent."""
 
-    model_name: str = "google/gemini-3.8-flash"
-    reasoning_effort: ReasoningEffort = DEFAULT_REASONING_EFFORT
+    # The model is fixed by QUANT_AGENT_MODEL / QUANT_AGENT_THINKING_LEVEL in
+    # backend/.env, so nothing here selects it.
     max_iterations: int = 10
-    session_data_dir: str | None = None  # Session-specific temp directory for data files
     asset_type: AssetType | None = None  # Asset type for market hours filtering
+    # Identifies the run whose code execution session this context belongs to;
+    # the `task` tool sets it and closes that session in its `finally`.
+    run_id: str | None = None
 
 # ========================================
 # Chart Agent
@@ -64,13 +69,15 @@ class OrchestratorState(AgentState):
 
 @dataclass
 class OrchestratorContext:
+    """Runtime context for the orchestrator.
+
+    The chart and quant subagents take their model and thinking level from
+    backend/.env (CHART_AGENT_* / QUANT_AGENT_*), so nothing here selects a
+    model for them.
+    """
+
     model_name: str = "google/gemini-3.8-flash"
-    subagent_model_name: str = "google/gemini-3.8-flash"
     reasoning_effort: ReasoningEffort = DEFAULT_REASONING_EFFORT
-    # Effort for the chart/quant subagents. Kept separate from the
-    # orchestrator's so a run can think hard about planning while the
-    # subagents stay cheap, or the other way round.
-    subagent_reasoning_effort: ReasoningEffort = DEFAULT_REASONING_EFFORT
     max_research_iterations: int = 5
     max_concurrent_tasks: int = 4
     min_research_iterations: int = 2

@@ -12,7 +12,7 @@ import type {
   ReasoningEffort,
   ThemeMode,
 } from '../types'
-import { MODEL_MAP, REASONING_EFFORTS } from '../types'
+import { DEFAULT_MODEL_LABEL, MODEL_MAP, REASONING_EFFORTS } from '../types'
 
 const DEFAULT_INDICATORS: IndicatorSettings = {
   ema_10: false,
@@ -62,16 +62,12 @@ interface AppState {
   maxResearchIterations: number
   maxConcurrentTasks: number
   agentModelLabel: ModelLabel
-  subagentModelLabel: ModelLabel
   agentReasoningEffort: ReasoningEffort
-  subagentReasoningEffort: ReasoningEffort
   setMinResearchIterations: (n: number) => void
   setMaxResearchIterations: (n: number) => void
   setMaxConcurrentTasks: (n: number) => void
   setAgentModelLabel: (label: ModelLabel) => void
-  setSubagentModelLabel: (label: ModelLabel) => void
   setAgentReasoningEffort: (effort: ReasoningEffort) => void
-  setSubagentReasoningEffort: (effort: ReasoningEffort) => void
 
   // Chat
   messages: ChatMessage[]
@@ -128,19 +124,15 @@ export const useAppStore = create<AppState>()(
       minResearchIterations: 2,
       maxResearchIterations: 6,
       maxConcurrentTasks: 4,
-      agentModelLabel: 'Gemini 3.8 Flash' as ModelLabel,
-      subagentModelLabel: 'Gemini 3.8 Flash' as ModelLabel,
+      agentModelLabel: DEFAULT_MODEL_LABEL,
       // Matches the backend default (agents/utils/llm.py): medium unless asked
       // otherwise, so the UI never sends "unspecified" and the run is explicit.
       agentReasoningEffort: 'medium' as ReasoningEffort,
-      subagentReasoningEffort: 'medium' as ReasoningEffort,
       setMinResearchIterations: (n) => set({ minResearchIterations: n }),
       setMaxResearchIterations: (n) => set({ maxResearchIterations: n }),
       setMaxConcurrentTasks: (n) => set({ maxConcurrentTasks: n }),
       setAgentModelLabel: (label) => set({ agentModelLabel: label }),
-      setSubagentModelLabel: (label) => set({ subagentModelLabel: label }),
       setAgentReasoningEffort: (effort) => set({ agentReasoningEffort: effort }),
-      setSubagentReasoningEffort: (effort) => set({ subagentReasoningEffort: effort }),
 
       messages: [],
       isStreaming: false,
@@ -190,9 +182,7 @@ export const useAppStore = create<AppState>()(
         maxResearchIterations: s.maxResearchIterations,
         maxConcurrentTasks: s.maxConcurrentTasks,
         agentModelLabel: s.agentModelLabel,
-        subagentModelLabel: s.subagentModelLabel,
         agentReasoningEffort: s.agentReasoningEffort,
-        subagentReasoningEffort: s.subagentReasoningEffort,
         chatWidth: s.chatWidth,
       }),
       // Spread persisted indicators over the defaults so snapshots written
@@ -210,10 +200,8 @@ export const useAppStore = create<AppState>()(
         return {
           ...current,
           ...p,
-          agentModelLabel: validModel(p.agentModelLabel) ? p.agentModelLabel : 'Gemini 3.8 Flash',
-          subagentModelLabel: validModel(p.subagentModelLabel) ? p.subagentModelLabel : 'Gemini 3.8 Flash',
+          agentModelLabel: validModel(p.agentModelLabel) ? p.agentModelLabel : DEFAULT_MODEL_LABEL,
           agentReasoningEffort: validEffort(p.agentReasoningEffort) ? p.agentReasoningEffort : 'medium',
-          subagentReasoningEffort: validEffort(p.subagentReasoningEffort) ? p.subagentReasoningEffort : 'medium',
           currentIndicators: { ...DEFAULT_INDICATORS, ...(p.currentIndicators ?? {}) },
         }
       },

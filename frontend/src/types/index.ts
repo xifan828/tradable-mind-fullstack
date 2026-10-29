@@ -1,24 +1,30 @@
 export type AssetType = 'forex' | 'commodity' | 'crypto' | 'stock'
 export type ModelLabel =
-  | 'DeepSeek V4.1 Flash'
-  | 'Gemini 3.8 Flash'
-  | 'Kimi K3'
-  | 'GLM 5.3 FlashX'
+  | 'Google: Gemini 3.8 Flash'
+  | 'Google: Gemini 4 Argon'
+  | 'MoonshotAI: Kimi K3.1 Pro'
+  | 'OpenAI: GPT-6.1 Terra'
 export type ThemeMode = 'light' | 'dark'
 
+/** Display label → OpenRouter slug. The label keeps the vendor name so the
+ *  dropdown reads on its own; the backend takes the slug verbatim. */
 export const MODEL_MAP: Record<ModelLabel, string> = {
-  'DeepSeek V4.1 Flash': 'deepseek/deepseek-v4.1-flash',
-  'Gemini 3.8 Flash': 'google/gemini-3.8-flash',
-  'Kimi K3': 'moonshotai/kimi-k3',
-  'GLM 5.3 FlashX': 'z-ai/glm-5.3-flashx',
+  'Google: Gemini 3.8 Flash': 'google/gemini-3.8-flash',
+  'Google: Gemini 4 Argon': 'google/gemini-4-argon',
+  'MoonshotAI: Kimi K3.1 Pro': 'moonshotai/kimi-k3.1-pro',
+  'OpenAI: GPT-6.1 Terra': 'openai/gpt-6.1-terra',
 }
 
+export const MODEL_LABELS = Object.keys(MODEL_MAP) as ModelLabel[]
+
+export const DEFAULT_MODEL_LABEL: ModelLabel = 'Google: Gemini 3.8 Flash'
+
 /**
- * Thinking budget sent to the backend as `reasoning_effort` /
- * `subagent_reasoning_effort`, forwarded to OpenRouter as
- * `reasoning: { effort }`. Keep in sync with REASONING_EFFORTS in the backend
- * (src/agent/utils/llm.py), which falls back to "medium" for anything it does
- * not recognize.
+ * Thinking budget sent to the backend as `reasoning_effort`, forwarded to
+ * OpenRouter as `reasoning: { effort }`. Keep in sync with REASONING_EFFORTS in
+ * the backend (src/agent/utils/llm.py), which falls back to "medium" for
+ * anything it does not recognize. The chart and quant subagents take their
+ * budget from the backend's .env instead.
  */
 export const REASONING_EFFORTS = ['low', 'medium', 'high'] as const
 export type ReasoningEffort = (typeof REASONING_EFFORTS)[number]

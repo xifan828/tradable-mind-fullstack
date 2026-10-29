@@ -5,5 +5,8 @@ CLAUDE.md
 # Runtime-generated chart data
 backend/data/
 
+# Scratch scripts and notebooks, not app code
+backend/examples/
+
 # Claude skills lockfiles
 skills-lock.json
